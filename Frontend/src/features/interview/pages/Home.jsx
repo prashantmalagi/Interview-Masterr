@@ -4,36 +4,78 @@ import { useInterview } from '../hooks/useInterview.js'
 import { useNavigate } from 'react-router'
 
 const Home = () => {
-
-    const { loading, generateReport,reports } = useInterview()
+    const { loading, generateReport, reports } = useInterview()
     const [ jobDescription, setJobDescription ] = useState("")
     const [ selfDescription, setSelfDescription ] = useState("")
+    const [ error, setError ] = useState("")
     const resumeInputRef = useRef()
 
     const navigate = useNavigate()
 
     const handleGenerateReport = async () => {
-        const resumeFile = resumeInputRef.current.files[ 0 ]
-        const data = await generateReport({ jobDescription, selfDescription, resumeFile })
-        navigate(`/interview/${data._id}`)
+        setError("")
+        const resumeFile = resumeInputRef.current?.files?.[0]
+
+        if (!jobDescription.trim()) {
+            setError("Job description is required.")
+            return
+        }
+
+        if (!resumeFile && !selfDescription.trim()) {
+            setError("Please upload a resume PDF or enter a quick self-description.")
+            return
+        }
+
+        try {
+            const data = await generateReport({ 
+                jobDescription: jobDescription.trim(), 
+                selfDescription: selfDescription.trim(), 
+                resumeFile 
+            })
+            if (data && data._id) {
+                navigate(`/interview/${data._id}`)
+            } else {
+                setError("Failed to generate report. Please try again.")
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || err.message || "Failed to generate interview report.")
+        }
     }
 
     if (loading) {
         return (
             <main className='loading-screen'>
                 <h1>Loading your interview plan...</h1>
+                <p>This may take up to 30 seconds. Please do not close or refresh this page.</p>
             </main>
         )
     }
 
     return (
         <div className='home-page'>
-
             {/* Page Header */}
             <header className='page-header'>
                 <h1>Create Your Custom <span className='highlight'>Interview Plan</span></h1>
                 <p>Let our AI analyze the job requirements and your unique profile to build a winning strategy.</p>
             </header>
+
+            {/* Error Message */}
+            {error && (
+                <div className='error-box' style={{
+                    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                    border: '1px solid #ff6b6b',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    color: '#ff6b6b',
+                    marginBottom: '1.5rem',
+                    maxWidth: '800px',
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                    textAlign: 'center'
+                }}>
+                    {error}
+                </div>
+            )}
 
             {/* Main Card */}
             <div className='interview-card'>
@@ -50,11 +92,12 @@ const Home = () => {
                         </div>
                         <textarea
                             onChange={(e) => { setJobDescription(e.target.value) }}
+                            value={jobDescription}
                             className='panel__textarea'
                             placeholder={`Paste the full job description here...\ne.g. 'Senior Frontend Engineer at Google requires proficiency in React, TypeScript, and large-scale system design...'`}
                             maxLength={5000}
                         />
-                        <div className='char-counter'>0 / 5000 chars</div>
+                        <div className='char-counter'>{jobDescription.length} / 5000 chars</div>
                     </div>
 
                     {/* Vertical Divider */}
@@ -79,9 +122,19 @@ const Home = () => {
                                 <span className='dropzone__icon'>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16" /><line x1="12" y1="12" x2="12" y2="21" /><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" /></svg>
                                 </span>
-                                <p className='dropzone__title'>Click to upload or drag &amp; drop</p>
-                                <p className='dropzone__subtitle'>PDF or DOCX (Max 5MB)</p>
-                                <input ref={resumeInputRef} hidden type='file' id='resume' name='resume' accept='.pdf,.docx' />
+                                <p className='dropzone__title'>
+                                    {resumeInputRef.current?.files?.[0] ? resumeInputRef.current.files[0].name : "Click to upload or drag & drop"}
+                                </p>
+                                <p className='dropzone__subtitle'>PDF Only (Max 3MB)</p>
+                                <input 
+                                    ref={resumeInputRef} 
+                                    hidden 
+                                    type='file' 
+                                    id='resume' 
+                                    name='resume' 
+                                    accept='.pdf' 
+                                    onChange={() => setError("")} // Clear error when file is selected
+                                />
                             </label>
                         </div>
 
@@ -93,6 +146,7 @@ const Home = () => {
                             <label className='section-label' htmlFor='selfDescription'>Quick Self-Description</label>
                             <textarea
                                 onChange={(e) => { setSelfDescription(e.target.value) }}
+                                value={selfDescription}
                                 id='selfDescription'
                                 name='selfDescription'
                                 className='panel__textarea panel__textarea--short'
@@ -123,7 +177,7 @@ const Home = () => {
             </div>
 
             {/* Recent Reports List */}
-            {reports.length > 0 && (
+            {reports && reports.length > 0 && (
                 <section className='recent-reports'>
                     <h2>My Recent Interview Plans</h2>
                     <ul className='reports-list'>
