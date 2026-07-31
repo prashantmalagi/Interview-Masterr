@@ -20,6 +20,10 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute><Home /></ProtectedRoute>
     },
     {
+        path: "/dashboard",
+        element: <ProtectedRoute><Home /></ProtectedRoute>
+    },
+    {
         path: "/interview/:interviewId",
         element: <ProtectedRoute><Interview /></ProtectedRoute>
     }

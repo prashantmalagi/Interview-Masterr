@@ -1,11 +1,14 @@
 const jwt = require("jsonwebtoken")
 const tokenBlacklistModel = require("../models/blacklist.model")
 
-
-
 async function authUser(req, res, next) {
     try {
-        const token = req.cookies.token
+        let token = req.cookies?.token;
+
+        // Fallback to Bearer token in Authorization header
+        if (!token && req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+            token = req.headers.authorization.split(" ")[1];
+        }
 
         if (!token) {
             return res.status(401).json({
@@ -39,6 +42,5 @@ async function authUser(req, res, next) {
         })
     }
 }
-
 
 module.exports = { authUser }

@@ -15,6 +15,9 @@ export const useAuth = () => {
         try {
             const data = await login({ email, password })
             if (data && data.user) {
+                if (data.token) {
+                    localStorage.setItem("token", data.token);
+                }
                 setUser(data.user)
                 return data.user
             }
@@ -32,6 +35,9 @@ export const useAuth = () => {
         try {
             const data = await register({ username, email, password })
             if (data && data.user) {
+                if (data.token) {
+                    localStorage.setItem("token", data.token);
+                }
                 setUser(data.user)
                 return data.user
             }
@@ -49,6 +55,7 @@ export const useAuth = () => {
         try {
             await logout()
             setUser(null)
+            localStorage.removeItem("token")
             localStorage.removeItem("user")
         } catch (err) {
             console.error("Logout hook error:", err)

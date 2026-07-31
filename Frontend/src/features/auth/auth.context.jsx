@@ -15,10 +15,14 @@ export const AuthProvider = ({ children }) => {
                     setUser(data.user)
                 } else {
                     setUser(null)
+                    localStorage.removeItem("token")
+                    localStorage.removeItem("user")
                 }
             } catch (err) {
                 console.error("Auth initialization failed:", err)
                 setUser(null)
+                localStorage.removeItem("token")
+                localStorage.removeItem("user")
             } finally {
                 setLoading(false)
             }

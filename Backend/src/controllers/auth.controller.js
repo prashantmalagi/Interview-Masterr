@@ -49,15 +49,17 @@ async function registerUserController(req, res) {
             { expiresIn: "1d" }
         )
 
+        // Set HttpOnly cookie with cross-site compatibility settings (secure + sameSite "none")
         res.cookie("token", token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            secure: true,
+            sameSite: "none",
             maxAge: 24 * 60 * 60 * 1000 // 1 day
         })
 
         return res.status(201).json({
             message: "User registered successfully",
+            token,
             user: {
                 id: user._id,
                 username: user.username,
@@ -110,15 +112,17 @@ async function loginUserController(req, res) {
             { expiresIn: "1d" }
         )
 
+        // Set HttpOnly cookie with cross-site compatibility settings (secure + sameSite "none")
         res.cookie("token", token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            secure: true,
+            sameSite: "none",
             maxAge: 24 * 60 * 60 * 1000 // 1 day
         })
 
         return res.status(200).json({
             message: "User loggedIn successfully.",
+            token,
             user: {
                 id: user._id,
                 username: user.username,
@@ -139,13 +143,22 @@ async function loginUserController(req, res) {
  */
 async function logoutUserController(req, res) {
     try {
-        const token = req.cookies.token
+        let token = req.cookies?.token
+
+        // Support Authorization header fallback
+        if (!token && req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+            token = req.headers.authorization.split(" ")[1]
+        }
 
         if (token) {
             await tokenBlacklistModel.create({ token })
         }
 
-        res.clearCookie("token")
+        res.clearCookie("token", {
+            httpOnly: true,
+            secure: true,
+            sameSite: "none"
+        })
 
         return res.status(200).json({
             message: "User logged out successfully"
