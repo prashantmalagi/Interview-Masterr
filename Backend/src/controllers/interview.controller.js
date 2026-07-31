@@ -1,5 +1,6 @@
 const pdfParse = require("pdf-parse")
 const mongoose = require("mongoose")
+const mammoth = require("mammoth")
 const { generateInterviewReport, generateResumePdf } = require("../services/ai.service")
 const interviewReportModel = require("../models/interviewReport.model")
 
@@ -19,23 +20,38 @@ async function generateInterViewReportController(req, res) {
 
         let resumeText = ""
 
-        // Validate and parse PDF file if provided
+        // Validate and parse PDF/DOCX file if provided
         if (req.file) {
-            if (req.file.mimetype !== "application/pdf") {
+            const isPdf = req.file.mimetype === "application/pdf" || req.file.originalname.toLowerCase().endsWith(".pdf");
+            const isDocx = req.file.mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || req.file.originalname.toLowerCase().endsWith(".docx");
+
+            if (!isPdf && !isDocx) {
                 return res.status(400).json({
-                    message: "Only PDF resumes are supported."
+                    message: "Only PDF and DOCX resumes are supported."
                 })
             }
 
-            try {
-                const pdfParserInstance = new pdfParse.PDFParse(Uint8Array.from(req.file.buffer))
-                const resumeContent = await pdfParserInstance.getText()
-                resumeText = resumeContent.text || ""
-            } catch (parseError) {
-                console.error("PDF Parsing error:", parseError)
-                return res.status(400).json({
-                    message: "Failed to parse the uploaded PDF resume."
-                })
+            if (isPdf) {
+                try {
+                    const pdfParserInstance = new pdfParse.PDFParse(Uint8Array.from(req.file.buffer))
+                    const resumeContent = await pdfParserInstance.getText()
+                    resumeText = resumeContent.text || ""
+                } catch (parseError) {
+                    console.error("PDF Parsing error:", parseError)
+                    return res.status(400).json({
+                        message: "Failed to parse the uploaded PDF resume."
+                    })
+                }
+            } else if (isDocx) {
+                try {
+                    const result = await mammoth.extractRawText({ buffer: req.file.buffer })
+                    resumeText = result.value || ""
+                } catch (parseError) {
+                    console.error("DOCX Parsing error:", parseError)
+                    return res.status(400).json({
+                        message: "Failed to parse the uploaded DOCX resume."
+                    })
+                }
             }
         }
 
@@ -43,7 +59,7 @@ async function generateInterViewReportController(req, res) {
         const cleanSelfDescription = selfDescription ? selfDescription.trim() : ""
         if (!cleanSelfDescription && !resumeText.trim()) {
             return res.status(400).json({
-                message: "Please provide either a resume PDF or a self description."
+                message: "Please provide either a resume PDF/DOCX or a self description."
             })
         }
 
@@ -96,11 +112,18 @@ async function getInterviewReportByIdController(req, res) {
             })
         }
 
-        const interviewReport = await interviewReportModel.findOne({ _id: interviewId, user: req.user.id })
+        const interviewReport = await interviewReportModel.findById(interviewId)
 
         if (!interviewReport) {
             return res.status(404).json({
                 message: "Interview report not found."
+            })
+        }
+
+        // Explicit 403 Forbidden check
+        if (interviewReport.user.toString() !== req.user.id.toString()) {
+            return res.status(403).json({
+                message: "Access forbidden. You do not own this report."
             })
         }
 
@@ -150,11 +173,18 @@ async function generateResumePdfController(req, res) {
             })
         }
 
-        const interviewReport = await interviewReportModel.findOne({ _id: interviewReportId, user: req.user.id })
+        const interviewReport = await interviewReportModel.findById(interviewReportId)
 
         if (!interviewReport) {
             return res.status(404).json({
                 message: "Interview report not found."
+            })
+        }
+
+        // Explicit 403 Forbidden check
+        if (interviewReport.user.toString() !== req.user.id.toString()) {
+            return res.status(403).json({
+                message: "Access forbidden. You do not own this report."
             })
         }
 

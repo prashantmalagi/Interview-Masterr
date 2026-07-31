@@ -1,6 +1,6 @@
-import { useContext, useEffect } from "react";
+import { useContext } from "react";
 import { AuthContext } from "../auth.context";
-import { login, register, logout, getMe } from "../services/auth.api";
+import { login, register, logout } from "../services/auth.api";
 
 export const useAuth = () => {
     const context = useContext(AuthContext)
@@ -49,30 +49,13 @@ export const useAuth = () => {
         try {
             await logout()
             setUser(null)
+            localStorage.removeItem("user")
         } catch (err) {
             console.error("Logout hook error:", err)
         } finally {
             setLoading(false)
         }
     }
-
-    useEffect(() => {
-        const getAndSetUser = async () => {
-            try {
-                const data = await getMe()
-                if (data && data.user) {
-                    setUser(data.user)
-                } else {
-                    setUser(null)
-                }
-            } catch (err) {
-                setUser(null)
-            } finally {
-                setLoading(false)
-            }
-        }
-        getAndSetUser()
-    }, [setUser, setLoading])
 
     return { user, loading, handleRegister, handleLogin, handleLogout }
 }

@@ -1,28 +1,35 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import "../style/home.scss"
 import { useInterview } from '../hooks/useInterview.js'
 import { useNavigate } from 'react-router'
 
 const Home = () => {
-    const { loading, generateReport, reports } = useInterview()
+    const { loading, generateReport, reports, getReports } = useInterview()
     const [ jobDescription, setJobDescription ] = useState("")
     const [ selfDescription, setSelfDescription ] = useState("")
+    const [ selectedFile, setSelectedFile ] = useState(null)
     const [ error, setError ] = useState("")
     const resumeInputRef = useRef()
 
     const navigate = useNavigate()
 
+    // Fetch reports on component mount
+    useEffect(() => {
+        getReports().catch(err => {
+            console.error("Failed to fetch reports on mount:", err)
+        })
+    }, [])
+
     const handleGenerateReport = async () => {
         setError("")
-        const resumeFile = resumeInputRef.current?.files?.[0]
 
         if (!jobDescription.trim()) {
             setError("Job description is required.")
             return
         }
 
-        if (!resumeFile && !selfDescription.trim()) {
-            setError("Please upload a resume PDF or enter a quick self-description.")
+        if (!selectedFile && !selfDescription.trim()) {
+            setError("Please upload a resume PDF/DOCX or enter a quick self-description.")
             return
         }
 
@@ -30,7 +37,7 @@ const Home = () => {
             const data = await generateReport({ 
                 jobDescription: jobDescription.trim(), 
                 selfDescription: selfDescription.trim(), 
-                resumeFile 
+                resumeFile: selectedFile 
             })
             if (data && data._id) {
                 navigate(`/interview/${data._id}`)
@@ -45,6 +52,7 @@ const Home = () => {
     if (loading) {
         return (
             <main className='loading-screen'>
+                <div className="spinner"></div>
                 <h1>Loading your interview plan...</h1>
                 <p>This may take up to 30 seconds. Please do not close or refresh this page.</p>
             </main>
@@ -123,17 +131,20 @@ const Home = () => {
                                     <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16" /><line x1="12" y1="12" x2="12" y2="21" /><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" /></svg>
                                 </span>
                                 <p className='dropzone__title'>
-                                    {resumeInputRef.current?.files?.[0] ? resumeInputRef.current.files[0].name : "Click to upload or drag & drop"}
+                                    {selectedFile ? selectedFile.name : "Click to upload or drag & drop"}
                                 </p>
-                                <p className='dropzone__subtitle'>PDF Only (Max 3MB)</p>
+                                <p className='dropzone__subtitle'>PDF or DOCX (Max 3MB)</p>
                                 <input 
                                     ref={resumeInputRef} 
                                     hidden 
                                     type='file' 
                                     id='resume' 
                                     name='resume' 
-                                    accept='.pdf' 
-                                    onChange={() => setError("")} // Clear error when file is selected
+                                    accept='.pdf,.docx' 
+                                    onChange={(e) => {
+                                        setError("");
+                                        setSelectedFile(e.target.files?.[0] || null);
+                                    }}
                                 />
                             </label>
                         </div>
