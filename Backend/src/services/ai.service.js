@@ -1,26 +1,29 @@
-const { GoogleGenAI } = require("@google/genai")
-const { z } = require("zod")
-const { zodToJsonSchema } = require("zod-to-json-schema")
-const puppeteer = require("puppeteer")
+const { OpenAI } = require("openai");
+const { z } = require("zod");
+const { zodToJsonSchema } = require("zod-to-json-schema");
+const puppeteer = require("puppeteer");
 
-// Helper function to get GoogleGenAI client with key validation
+// Helper function to get OpenAI/Groq client with key validation
 function getAiClient() {
-    const apiKey = process.env.GOOGLE_GENAI_API_KEY
+    const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
-        throw new Error("GOOGLE_GENAI_API_KEY is not defined in the environment variables.")
+        throw new Error("GROQ_API_KEY is not defined in the environment variables.");
     }
-    return new GoogleGenAI({ apiKey })
+    return new OpenAI({
+        apiKey,
+        baseURL: "https://api.groq.com/openai/v1",
+    });
 }
 
 const interviewReportSchema = z.object({
-    matchScore: z.number().describe("A score between 0 and 100 indicating how well the candidate's profile matches the job describe"),
+    matchScore: z.number().describe("A score between 0 and 100 indicating how well the candidate's profile matches the job description"),
     technicalQuestions: z.array(z.object({
         question: z.string().describe("The technical question can be asked in the interview"),
         intention: z.string().describe("The intention of interviewer behind asking this question"),
         answer: z.string().describe("How to answer this question, what points to cover, what approach to take etc.")
     })).describe("Technical questions that can be asked in the interview along with their intention and how to answer them"),
     behavioralQuestions: z.array(z.object({
-        question: z.string().describe("The technical question can be asked in the interview"),
+        question: z.string().describe("The behavioral question can be asked in the interview"),
         intention: z.string().describe("The intention of interviewer behind asking this question"),
         answer: z.string().describe("How to answer this question, what points to cover, what approach to take etc.")
     })).describe("Behavioral questions that can be asked in the interview along with their intention and how to answer them"),
@@ -34,40 +37,105 @@ const interviewReportSchema = z.object({
         tasks: z.array(z.string()).describe("List of tasks to be done on this day to follow the preparation plan, e.g. read a specific book or article, solve a set of problems, watch a video etc.")
     })).describe("A day-wise preparation plan for the candidate to follow in order to prepare for the interview effectively"),
     title: z.string().describe("The title of the job for which the interview report is generated"),
-})
+});
+
+const resumePdfSchema = z.object({
+    html: z.string().describe("The HTML content of the resume which can be converted to PDF using any library like puppeteer")
+});
+
+// Helper function to call Groq with retry and JSON validation
+async function callGroqWithJsonRetry(systemPrompt, userPrompt, schema, retries = 3) {
+    const client = getAiClient();
+    const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+    
+    let lastError = null;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            const completion = await client.chat.completions.create({
+                model: model,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt }
+                ],
+                response_format: { type: "json_object" },
+                temperature: 0.3,
+            });
+
+            const content = completion.choices[0]?.message?.content;
+            if (!content) {
+                throw new Error("Empty response received from Groq API.");
+            }
+
+            // Attempt to parse JSON
+            let parsedData;
+            try {
+                parsedData = JSON.parse(content);
+            } catch (parseErr) {
+                throw new Error(`JSON parsing failed: ${parseErr.message}. Raw response: ${content}`);
+            }
+
+            // Validate against the Zod schema
+            const validationResult = schema.safeParse(parsedData);
+            if (!validationResult.success) {
+                throw new Error(`Schema validation failed: ${validationResult.error.message}`);
+            }
+
+            return validationResult.data;
+        } catch (error) {
+            console.error(`Groq API Attempt ${attempt} failed:`, error.message);
+            lastError = error;
+            if (attempt < retries) {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+        }
+    }
+    throw new Error(`Failed to get a valid response from Groq after ${retries} attempts. Last error: ${lastError.message}`);
+}
 
 async function generateInterviewReport({ resume, selfDescription, jobDescription }) {
-    const ai = getAiClient()
+    const systemPrompt = `You are an expert technical interviewer and senior HR specialist.
+Generate a highly professional, detailed, and realistic interview preparation report.
+The output MUST be a valid JSON object matching the requested schema.
+Ensure that:
+1. The 'matchScore' is a realistic number between 0 and 100 based on the candidate's profile fit for the target job description.
+2. 'technicalQuestions' contains realistic, role-specific, challenging technical questions with clear intention and detailed answers/approaches.
+3. 'behavioralQuestions' contains realistic situational and behavioral questions (incorporate STAR methodology guidelines in the answers) with clear intention and detailed answers.
+4. 'skillGaps' lists actual skills from the job description that are missing or weak in the resume/self-description, with appropriate severity.
+5. 'preparationPlan' is a highly structured, day-wise preparation plan containing actionable tasks for the candidate.
+6. 'title' is the job title.
 
-    const prompt = `Generate an interview report for a candidate with the following details:
-                        Resume: ${resume || "Not provided"}
-                        Self Description: ${selfDescription || "Not provided"}
-                        Job Description: ${jobDescription}
-`
+The output must be formatted as a JSON object. Do not include markdown code block syntax (like \`\`\`json) inside the JSON response itself.`;
 
-    const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: zodToJsonSchema(interviewReportSchema),
-        }
-    })
+    const userPrompt = `Analyze the following candidate details against the job description and generate an interview report.
 
-    if (!response || !response.text) {
-        throw new Error("Invalid response received from Gemini API.")
+Candidate Resume:
+${resume || "Not provided"}
+
+Candidate Self-Description:
+${selfDescription || "Not provided"}
+
+Target Job Description:
+${jobDescription}
+
+Provide the response in the following JSON schema format:
+${JSON.stringify(zodToJsonSchema(interviewReportSchema), null, 2)}`;
+
+    try {
+        const report = await callGroqWithJsonRetry(systemPrompt, userPrompt, interviewReportSchema);
+        return report;
+    } catch (error) {
+        console.error("AI Generation error in generateInterviewReport:", error);
+        throw new Error(`Failed to generate interview report: ${error.message}`);
     }
-
-    return JSON.parse(response.text)
 }
 
 async function generatePdfFromHtml(htmlContent) {
     const browser = await puppeteer.launch({
         args: ['--no-sandbox', '--disable-setuid-sandbox']
-    })
+    });
     try {
-        const page = await browser.newPage()
-        await page.setContent(htmlContent, { waitUntil: "networkidle0" })
+        const page = await browser.newPage();
+        await page.setContent(htmlContent, { waitUntil: "networkidle0" });
 
         const pdfBuffer = await page.pdf({
             format: "A4",
@@ -77,50 +145,51 @@ async function generatePdfFromHtml(htmlContent) {
                 left: "15mm",
                 right: "15mm"
             }
-        })
-        return pdfBuffer
+        });
+        return pdfBuffer;
     } finally {
-        await browser.close()
+        await browser.close();
     }
 }
 
 async function generateResumePdf({ resume, selfDescription, jobDescription }) {
-    const ai = getAiClient()
+    const systemPrompt = `You are a professional resume writer and career coach.
+Generate a clean, highly professional, ATS-friendly resume in HTML format.
+The HTML content should be tailored for the given job description, highlighting the candidate's strengths and relevant experience.
+Ensure the HTML:
+- Uses modern, elegant typography (e.g., Arial, Helvetica, system-ui, clean line height, proper spacing).
+- Is structured logically with semantic HTML (sections for header/contact, professional summary, work experience, education, skills, projects).
+- Uses subtle, professional styling (e.g., deep slate/navy accents, clean borders/dividers) and is strictly 1-2 pages long.
+- Is clean, standard HTML/CSS compatible with Puppeteer's PDF converter.
+- Sounds completely natural, professional, and human-written. Do not use generic AI buzzwords or placeholders.
+- Is ATS-friendly (uses standard headings, text-based layouts, no complex nested tables/graphics).
 
-    const resumePdfSchema = z.object({
-        html: z.string().describe("The HTML content of the resume which can be converted to PDF using any library like puppeteer")
-    })
+The output MUST be a JSON object with a single field "html" containing the HTML string of the resume.`;
 
-    const prompt = `Generate resume for a candidate with the following details:
-                        Resume: ${resume || "Not provided"}
-                        Self Description: ${selfDescription || "Not provided"}
-                        Job Description: ${jobDescription}
+    const userPrompt = `Generate a tailored, ATS-friendly resume.
 
-                        the response should be a JSON object with a single field "html" which contains the HTML content of the resume which can be converted to PDF using any library like puppeteer.
-                        The resume should be tailored for the given job description and should highlight the candidate's strengths and relevant experience. The HTML content should be well-formatted and structured, making it easy to read and visually appealing.
-                        The content of resume should be not sound like it's generated by AI and should be as close as possible to a real human-written resume.
-                        you can highlight the content using some colors or different font styles but the overall design should be simple and professional.
-                        The content should be ATS friendly, i.e. it should be easily parsable by ATS systems without losing important information.
-                        The resume should not be so lengthy, it should ideally be 1-2 pages long when converted to PDF. Focus on quality rather than quantity and make sure to include all the relevant information that can increase the candidate's chances of getting an interview call for the given job description.
-                    `
+Candidate Resume Content:
+${resume || "Not provided"}
 
-    const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: zodToJsonSchema(resumePdfSchema),
-        }
-    })
+Candidate Self-Description:
+${selfDescription || "Not provided"}
 
-    if (!response || !response.text) {
-        throw new Error("Invalid response received from Gemini API.")
+Target Job Description:
+${jobDescription}
+
+Provide the response in the following JSON schema format:
+{
+  "html": "The HTML content of the resume"
+}`;
+
+    try {
+        const result = await callGroqWithJsonRetry(systemPrompt, userPrompt, resumePdfSchema);
+        const pdfBuffer = await generatePdfFromHtml(result.html);
+        return pdfBuffer;
+    } catch (error) {
+        console.error("AI Generation error in generateResumePdf:", error);
+        throw new Error(`Failed to generate resume PDF: ${error.message}`);
     }
-
-    const jsonContent = JSON.parse(response.text)
-    const pdfBuffer = await generatePdfFromHtml(jsonContent.html)
-
-    return pdfBuffer
 }
 
-module.exports = { generateInterviewReport, generateResumePdf }
+module.exports = { generateInterviewReport, generateResumePdf };
