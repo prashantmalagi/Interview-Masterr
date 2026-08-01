@@ -14,430 +14,677 @@ $info-bg:        #1b2a4a;
 $info-border:    #2d4a7a;
 $font-stack:     system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
-// ── Page Shell ───────────────────────────────────────────────────────────────
-.home-page {
+// Glassmorphism helper
+@mixin glass-card {
+    background: rgba(22, 27, 34, 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(42, 51, 72, 0.6);
+    border-radius: 1rem;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+// ── Dashboard Layout ────────────────────────────────────────────────────────
+.home-page-dashboard {
     width: 100%;
     min-height: 100vh;
     background-color: $bg-page;
     color: $text-primary;
     font-family: $font-stack;
-
+    padding: 2rem 3rem;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem 1.5rem;
     gap: 2rem;
-}
+    box-sizing: border-box;
 
-// ── Page Header ──────────────────────────────────────────────────────────────
-.page-header {
-    text-align: center;
-
-    h1 {
-        font-size: 2.25rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        color: $text-primary;
-    }
-
-    p {
-        color: $text-muted;
-        font-size: 0.95rem;
-        max-width: 480px;
-        margin: 0 auto;
-        line-height: 1.6;
-    }
-
-    .highlight {
-        color: $accent;
+    @media (max-width: 768px) {
+        padding: 1.5rem 1rem;
+        gap: 1.5rem;
     }
 }
 
-// ── Main Card ─────────────────────────────────────────────────────────────────
-.interview-card {
-    width: 100%;
-    max-width: 900px;
-    background-color: $bg-card;
-    border: 1px solid $border-color;
-    border-radius: 1rem;
-    overflow: hidden;
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid $border-color;
+    padding-bottom: 1.25rem;
 
-    &__body {
-        display: flex;
-        min-height: 520px;
-    }
-
-    &__footer {
+    .header-logo {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 1rem 1.5rem;
-        border-top: 1px solid $border-color;
+        gap: 0.75rem;
 
-        .footer-info {
-            font-size: 0.8rem;
-            color: $text-muted;
+        .logo-icon {
+            color: $accent;
+            width: 32px;
+            height: 32px;
+        }
+
+        h1 {
+            font-size: clamp(1.4rem, 4vw, 1.8rem);
+            font-weight: 800;
         }
     }
-}
 
-// ── Panels ────────────────────────────────────────────────────────────────────
-.panel-divider {
-    width: 1px;
-    background-color: $border-color;
-    flex-shrink: 0;
-}
-
-.panel {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    padding: 1.5rem;
-
-    &__header {
+    .quick-new-btn {
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        margin-bottom: 0.25rem;
+        padding: 0.65rem 1.25rem;
+        background-color: rgba($accent, 0.1);
+        color: $accent-alt;
+        border: 1px solid rgba($accent, 0.3);
+        border-radius: 0.5rem;
+        font-weight: 600;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
 
-        h2 {
-            font-size: 1rem;
-            font-weight: 600;
-            color: $text-primary;
-            flex: 1;
+        &:hover {
+            background-color: $accent;
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 480px) {
+            display: none;
         }
     }
+}
 
-    &__icon {
+// Stats row
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.25rem;
+    width: 100%;
+
+    .stat-card {
+        @include glass-card;
+        padding: 1.5rem;
         display: flex;
         align-items: center;
-        color: $accent;
-    }
+        gap: 1.25rem;
+        transition: transform 0.25s ease, border-color 0.25s ease;
 
-    &__textarea {
-        flex: 1;
-        width: 100%;
-        background-color: $bg-input;
-        border: 1px solid $border-color;
-        border-radius: 0.5rem;
-        padding: 0.75rem 1rem;
-        color: $text-primary;
-        font-family: $font-stack;
-        font-size: 0.875rem;
-        resize: none;
-        outline: none;
-        transition: border-color 0.2s;
-        line-height: 1.5;
-
-        &::placeholder {
-            color: $text-muted;
-        }
-
-        &:focus {
+        &:hover {
+            transform: translateY(-2px);
             border-color: $accent;
         }
 
-        &--short {
-            flex: unset;
-            height: 96px;
+        .stat-icon-wrapper {
+            width: 48px;
+            height: 48px;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+
+            &.blue-icon {
+                background: rgba(30, 41, 59, 0.8);
+                color: #3b82f6;
+            }
+            &.green-icon {
+                background: rgba(30, 41, 59, 0.8);
+                color: #10b981;
+            }
+            &.orange-icon {
+                background: rgba(30, 41, 59, 0.8);
+                color: #f59e0b;
+            }
+        }
+
+        .stat-details {
+            h3 {
+                font-size: 0.8rem;
+                font-weight: 600;
+                color: $text-muted;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin-bottom: 0.25rem;
+            }
+            p {
+                font-size: 1.6rem;
+                font-weight: 800;
+                color: $text-primary;
+                margin: 0;
+            }
+            .stat-footer {
+                font-size: 0.75rem;
+                color: $text-muted;
+                margin-top: 0.15rem;
+                display: block;
+            }
+        }
+    }
+}
+
+// Error box
+.error-box {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background-color: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #f87171;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+// Main grid
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1.7fr 1fr;
+    gap: 1.5rem;
+    width: 100%;
+    align-items: start;
+
+    @media (max-width: 1024px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+// Glassmorphism create strategy panel
+.create-card-glass {
+    @include glass-card;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+
+    .card-header-premium {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-bottom: 1px solid $border-color;
+        padding-bottom: 1rem;
+
+        .header-sparkle {
+            color: $accent;
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0;
         }
     }
 
-    &--left {
-        position: relative;
+    .panels-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .panel-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+
+        .panel-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: $text-primary;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.15rem 0.5rem;
+            border-radius: 0.25rem;
+            text-transform: uppercase;
+
+            &--required {
+                background-color: rgba($accent, 0.15);
+                color: $accent-alt;
+                border: 1px solid rgba($accent, 0.3);
+            }
+
+            &--best {
+                background-color: rgba(#10b981, 0.15);
+                color: #34d399;
+                border: 1px solid rgba(#10b981, 0.3);
+            }
+        }
+
+        .jd-textarea {
+            width: 100%;
+            height: 220px;
+            background-color: $bg-input;
+            border: 1px solid $border-color;
+            border-radius: 0.6rem;
+            padding: 1rem;
+            color: $text-primary;
+            font-family: $font-stack;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+
+            &:focus {
+                border-color: $accent;
+            }
+        }
+
+        .self-textarea {
+            width: 100%;
+            height: 90px;
+            background-color: $bg-input;
+            border: 1px solid $border-color;
+            border-radius: 0.6rem;
+            padding: 0.75rem 1rem;
+            color: $text-primary;
+            font-family: $font-stack;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+
+            &:focus {
+                border-color: $accent;
+            }
+        }
 
         .char-counter {
-            position: absolute;
-            bottom: 2.25rem;
-            right: 2rem;
+            align-self: flex-end;
             font-size: 0.75rem;
             color: $text-muted;
         }
     }
 
-    &--right {
-        gap: 0.75rem;
-    }
-}
-
-// ── Badges ────────────────────────────────────────────────────────────────────
-.badge {
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 0.15rem 0.5rem;
-    border-radius: 0.3rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-
-    &--required {
-        background-color: rgba($badge-required, 0.15);
-        color: $badge-required;
-        border: 1px solid rgba($badge-required, 0.3);
-    }
-
-    &--best {
-        background-color: rgba($badge-best, 0.15);
-        color: $badge-best;
-        border: 1px solid rgba($badge-best, 0.3);
-    }
-}
-
-// ── Section Label ─────────────────────────────────────────────────────────────
-.section-label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: $text-primary;
-    margin-bottom: 0.25rem;
-}
-
-// ── Dropzone ──────────────────────────────────────────────────────────────────
-.upload-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.dropzone {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
-    padding: 1.5rem 1rem;
-    background-color: $bg-input;
-    border: 2px dashed $border-color;
-    border-radius: 0.6rem;
-    cursor: pointer;
-    transition: border-color 0.2s, background-color 0.2s;
-
-    &:hover {
-        border-color: $accent;
-        background-color: rgba($accent, 0.05);
-    }
-
-    &__icon {
-        color: $accent;
-        margin-bottom: 0.25rem;
-    }
-
-    &__title {
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: $text-primary;
-        margin: 0;
-    }
-
-    &__subtitle {
-        font-size: 0.75rem;
-        color: $text-muted;
-        margin: 0;
-    }
-}
-
-// ── OR Divider ────────────────────────────────────────────────────────────────
-.or-divider {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    color: $text-muted;
-    font-size: 0.75rem;
-
-    &::before,
-    &::after {
-        content: '';
-        flex: 1;
+    .panel-divider-horiz {
         height: 1px;
         background-color: $border-color;
+        margin: 0.5rem 0;
     }
 
-    span {
-        white-space: nowrap;
-    }
-}
+    .dropzone-premium {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 2rem 1.5rem;
+        background-color: $bg-input;
+        border: 2px dashed $border-color;
+        border-radius: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
 
-// ── Self Description ──────────────────────────────────────────────────────────
-.self-description {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
+        &:hover {
+            border-color: $accent;
+            background-color: rgba($accent, 0.03);
+        }
 
-// ── Info Box ──────────────────────────────────────────────────────────────────
-.info-box {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.6rem;
-    padding: 0.75rem 1rem;
-    background-color: $info-bg;
-    border: 1px solid $info-border;
-    border-radius: 0.5rem;
+        .upload-arrow {
+            color: $accent;
+        }
 
-    &__icon {
-        flex-shrink: 0;
-        color: #4a90e2;
-        margin-top: 1px;
-    }
-
-    p {
-        margin: 0;
-        font-size: 0.8rem;
-        color: #8ab4f8;
-        line-height: 1.5;
-
-        strong {
+        .dropzone-title {
+            font-size: 0.9rem;
+            font-weight: 600;
             color: $text-primary;
+            text-align: center;
+        }
+
+        .dropzone-subtitle {
+            font-size: 0.75rem;
+            color: $text-muted;
         }
     }
-}
 
-// ── Generate Button ───────────────────────────────────────────────────────────
-.generate-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, $accent 0%, darken($accent, 10%) 100%);
-    color: #fff;
-    font-size: 0.9rem;
-    font-weight: 600;
-    border: none;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    transition: opacity 0.2s, transform 0.1s;
-    font-family: $font-stack;
-
-    &:hover {
-        opacity: 0.9;
-    }
-
-    &:active {
-        transform: scale(0.98);
-    }
-}
-
-.recent-reports{
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    width: 100%;
-    max-width: 900px;
-
-    .reports-list{
+    .divider-or {
         display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
+        align-items: center;
+        gap: 1rem;
+        color: $text-muted;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin: 0.5rem 0;
 
-        .report-item{
-            background-color: $bg-card;
-            border: 1px solid $border-color;
-            border-radius: 0.5rem;
-            padding: 1rem;
+        &::before,
+        &::after {
+            content: '';
             flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            cursor: pointer;
-            flex-shrink: 0;
+            height: 1px;
+            background-color: $border-color;
+        }
+    }
 
-            .match-score {
-                font-size: 0.8rem;
-                font-weight: 600;
-                color: $accent;
-                align-items: flex-start;
+    .create-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-top: 1px solid $border-color;
+        padding-top: 1.25rem;
+        gap: 1.5rem;
+
+        @media (max-width: 768px) {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .footer-ai-note {
+            font-size: 0.8rem;
+            color: $text-muted;
+        }
+
+        .primary-saas-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.85rem 1.75rem;
+            background: linear-gradient(135deg, $accent 0%, darken($accent, 12%) 100%);
+            color: #fff;
+            border: none;
+            border-radius: 0.6rem;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba($accent, 0.3);
+            transition: all 0.2s ease;
+            min-height: 48px;
+
+            &:hover {
+                box-shadow: 0 6px 20px rgba($accent, 0.4);
+                transform: translateY(-1px);
+            }
+
+            &:active {
+                transform: translateY(0);
             }
         }
     }
 }
 
-// ── Media Queries for Responsiveness ──────────────────────────────────────────
-@media (max-width: 1024px) {
-    .interview-card {
-        max-width: 100%;
-    }
-}
+// Recent Reports List Panel
+.recent-reports-panel {
+    @include glass-card;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-height: 600px;
+    overflow-y: auto;
 
-@media (max-width: 768px) {
-    .home-page {
-        padding: 1.5rem 1rem;
-        gap: 1.5rem;
-    }
+    .panel-header-premium {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-bottom: 1px solid $border-color;
+        padding-bottom: 1rem;
+        color: $text-primary;
 
-    .page-header {
-        h1 {
-            font-size: clamp(1.5rem, 6vw, 2rem);
+        h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0;
         }
+    }
+
+    .recent-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+    }
+
+    .recent-item-glass {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        gap: 1rem;
+        transition: all 0.2s ease;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: $accent;
+            .arrow-link {
+                transform: translateX(3px);
+                color: $accent;
+            }
+        }
+
+        .recent-title-group {
+            flex: 1;
+            min-width: 0;
+            h3 {
+                font-size: 0.95rem;
+                font-weight: 700;
+                color: $text-primary;
+                margin: 0 0 0.25rem 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            p {
+                font-size: 0.75rem;
+                color: $text-muted;
+                margin: 0;
+            }
+        }
+
+        .recent-score-ring {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 2px solid $border-color;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+
+            .score-value {
+                font-size: 0.8rem;
+                font-weight: 700;
+
+                &.high {
+                    color: #10b981;
+                }
+                &.mid {
+                    color: #f59e0b;
+                }
+                &.low {
+                    color: #ef4444;
+                }
+            }
+        }
+
+        .arrow-link {
+            color: $text-muted;
+            transition: all 0.2s ease;
+        }
+    }
+
+    .no-reports-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem 1rem;
+        color: $text-muted;
+        text-align: center;
+        gap: 0.75rem;
+
         p {
             font-size: 0.875rem;
         }
     }
+}
 
-    .interview-card {
-        &__body {
-            flex-direction: column;
-            min-height: auto;
-        }
+// ── Loading Screen Premium ──────────────────────────────────────────────────
+.loading-screen-premium {
+    width: 100%;
+    min-height: 100vh;
+    background-color: $bg-page;
+    color: $text-primary;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    box-sizing: border-box;
 
-        &__footer {
-            flex-direction: column;
-            gap: 1rem;
-            padding: 1.25rem 1rem;
-            align-items: stretch;
-
-            .footer-info {
-                text-align: center;
-            }
-        }
-    }
-
-    .panel-divider {
-        display: none;
-    }
-
-    .panel {
-        padding: 1.25rem 1rem;
+    .loader-container {
         width: 100%;
-        
-        &__textarea {
-            min-height: 180px;
-            
-            &--short {
-                height: 120px;
-                flex: none;
-            }
+        max-width: 460px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2rem;
+        position: relative;
+    }
+
+    .gradient-ring-container {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .rotating-gradient-ring {
+        position: absolute;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        border: 3px solid transparent;
+        border-top-color: $accent;
+        border-bottom-color: $accent-alt;
+        filter: drop-shadow(0 0 8px rgba($accent, 0.5));
+    }
+
+    .brain-core {
+        position: relative;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background-color: $bg-card;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid $border-color;
+        overflow: hidden;
+
+        .brain-icon {
+            color: $accent;
+            filter: drop-shadow(0 0 6px rgba($accent, 0.6));
+        }
+
+        .scanning-beam {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, $accent-alt, transparent);
+            box-shadow: 0 0 6px 1px $accent-alt;
+            pointer-events: none;
         }
     }
 
-    .generate-btn {
+    .glowing-circle {
+        position: absolute;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba($accent, 0.08) 0%, transparent 70%);
+        pointer-events: none;
+        z-index: 0;
+
+        &.circle-1 {
+            width: 300px;
+            height: 300px;
+            top: -90px;
+        }
+        &.circle-2 {
+            width: 250px;
+            height: 250px;
+            bottom: -60px;
+        }
+    }
+
+    .loading-text-box {
+        text-align: center;
+        min-height: 60px;
+
+        .loading-message-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: $text-primary;
+            margin: 0 0 0.5rem 0;
+            letter-spacing: 0.02em;
+        }
+
+        .loading-subtext {
+            font-size: 0.85rem;
+            color: $text-muted;
+            margin: 0;
+        }
+    }
+
+    .progress-bar-container {
         width: 100%;
-        justify-content: center;
-        min-height: 48px;
-    }
-
-    .recent-reports {
-        .reports-list {
-            flex-direction: column;
-            
-            .report-item {
-                flex: unset;
-                width: 100%;
-            }
-        }
-    }
-
-    .page-footer {
-        flex-wrap: wrap;
-        justify-content: center;
+        display: flex;
+        align-items: center;
         gap: 1rem;
+
+        .progress-bar-bg {
+            flex: 1;
+            height: 6px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.02);
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, $accent, $accent-alt);
+            border-radius: 10px;
+            width: 0%;
+        }
+
+        .progress-percentage {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: $accent-alt;
+            width: 36px;
+            text-align: right;
+        }
     }
 }
 
-@media (max-width: 480px) {
-    .home-page {
-        padding: 1rem 0.5rem;
+// Footer styling
+.dashboard-footer {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: auto;
+    border-top: 1px solid $border-color;
+    padding-top: 1.5rem;
+
+    a {
+        font-size: 0.8rem;
+        color: $text-muted;
+        text-decoration: none;
+        transition: color 0.2s;
+
+        &:hover {
+            color: $text-primary;
+        }
     }
 }

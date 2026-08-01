@@ -2,90 +2,346 @@ import React, { useState, useEffect } from 'react'
 import '../style/interview.scss'
 import { useInterview } from '../hooks/useInterview.js'
 import { useNavigate, useParams } from 'react-router'
-
-
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+    Clock, Copy, Bookmark, CheckCircle2, ChevronDown, Share2, 
+    Download, Search, Filter, Play, Pause, RotateCcw, HelpCircle, 
+    BookOpen, Terminal, Sparkles, Heart, Sun, Moon, ArrowLeft, MessageSquare, AlertCircle
+} from 'lucide-react'
 
 const NAV_ITEMS = [
-    { id: 'technical', label: 'Technical Questions', icon: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>) },
-    { id: 'behavioral', label: 'Behavioral Questions', icon: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>) },
-    { id: 'roadmap', label: 'Road Map', icon: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11" /></svg>) },
+    { id: 'technical', label: 'Technical Questions', icon: <Terminal size={16} /> },
+    { id: 'behavioral', label: 'Behavioral Questions', icon: <MessageSquare size={16} /> },
+    { id: 'roadmap', label: 'Road Map', icon: <BookOpen size={16} /> },
 ]
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-const QuestionCard = ({ item, index }) => {
-    const [ open, setOpen ] = useState(false)
+// ── Practice Timer Component ───────────────────────────────────────────
+const PracticeTimer = () => {
+    const [seconds, setSeconds] = useState(0);
+    const [isActive, setIsActive] = useState(false);
+
+    useEffect(() => {
+        let interval = null;
+        if (isActive) {
+            interval = setInterval(() => {
+                setSeconds(sec => sec + 1);
+            }, 1000);
+        } else if (!isActive && seconds !== 0) {
+            clearInterval(interval);
+        }
+        return () => clearInterval(interval);
+    }, [isActive, seconds]);
+
+    const formatTime = (totalSec) => {
+        const hrs = Math.floor(totalSec / 3600);
+        const mins = Math.floor((totalSec % 3600) / 60);
+        const secs = totalSec % 60;
+        return [
+            hrs > 0 ? String(hrs).padStart(2, '0') : null,
+            String(mins).padStart(2, '0'),
+            String(secs).padStart(2, '0')
+        ].filter(Boolean).join(':');
+    };
+
     return (
-        <div className='q-card'>
-            <div className='q-card__header' onClick={() => setOpen(o => !o)}>
-                <span className='q-card__index'>Q{index + 1}</span>
-                <p className='q-card__question'>{item.question}</p>
-                <span className={`q-card__chevron ${open ? 'q-card__chevron--open' : ''}`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
-                </span>
+        <div className='practice-timer-card'>
+            <div className='timer-header'>
+                <Clock size={16} className='pulse-icon' />
+                <span>Practice Timer</span>
             </div>
-            {open && (
-                <div className='q-card__body'>
-                    <div className='q-card__section'>
-                        <span className='q-card__tag q-card__tag--intention'>Intention</span>
-                        <p>{item.intention}</p>
-                    </div>
-                    <div className='q-card__section'>
-                        <span className='q-card__tag q-card__tag--answer'>Model Answer</span>
-                        <p>{item.answer}</p>
-                    </div>
+            <div className='timer-display'>{formatTime(seconds)}</div>
+            <div className='timer-controls'>
+                <button onClick={() => setIsActive(!isActive)} className={`control-btn ${isActive ? 'pause' : 'play'}`}>
+                    {isActive ? <Pause size={14} /> : <Play size={14} />}
+                </button>
+                <button onClick={() => { setSeconds(0); setIsActive(false); }} className='control-btn reset'>
+                    <RotateCcw size={14} />
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// ── Question Card Component ────────────────────────────────────────────
+const QuestionCard = ({ item, index, interviewId, isTechnical = true }) => {
+    const [open, setOpen] = useState(false);
+    const [isBookmarked, setIsBookmarked] = useState(false);
+    const [isCompleted, setIsCompleted] = useState(false);
+    const [notes, setNotes] = useState("");
+    const [copied, setCopied] = useState(false);
+
+    const questionKey = `${interviewId}_${isTechnical ? 'tech' : 'beh'}_${index}`;
+
+    useEffect(() => {
+        const bookmarks = JSON.parse(localStorage.getItem('interview_bookmarks') || '{}');
+        const completed = JSON.parse(localStorage.getItem('interview_completed') || '{}');
+        const savedNotes = JSON.parse(localStorage.getItem('interview_notes') || '{}');
+        
+        setIsBookmarked(!!bookmarks[questionKey]);
+        setIsCompleted(!!completed[questionKey]);
+        setNotes(savedNotes[questionKey] || "");
+    }, [questionKey]);
+
+    const toggleBookmark = (e) => {
+        e.stopPropagation();
+        const bookmarks = JSON.parse(localStorage.getItem('interview_bookmarks') || '{}');
+        if (bookmarks[questionKey]) {
+            delete bookmarks[questionKey];
+            setIsBookmarked(false);
+        } else {
+            bookmarks[questionKey] = true;
+            setIsBookmarked(true);
+        }
+        localStorage.setItem('interview_bookmarks', JSON.stringify(bookmarks));
+        // dispatch custom event to update dashboard/other components if needed
+        window.dispatchEvent(new Event('storage'));
+    };
+
+    const toggleCompleted = (e) => {
+        e.stopPropagation();
+        const completed = JSON.parse(localStorage.getItem('interview_completed') || '{}');
+        if (completed[questionKey]) {
+            delete completed[questionKey];
+            setIsCompleted(false);
+        } else {
+            completed[questionKey] = true;
+            setIsCompleted(true);
+        }
+        localStorage.setItem('interview_completed', JSON.stringify(completed));
+    };
+
+    const handleNotesChange = (e) => {
+        const val = e.target.value;
+        setNotes(val);
+        const savedNotes = JSON.parse(localStorage.getItem('interview_notes') || '{}');
+        savedNotes[questionKey] = val;
+        localStorage.setItem('interview_notes', JSON.stringify(savedNotes));
+    };
+
+    const copyToClipboard = (e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(item.question);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const diff = item.difficulty || 'medium';
+
+    return (
+        <div className={`q-card-premium ${isCompleted ? 'q-card-premium--completed' : ''}`}>
+            <div className='q-card-header' onClick={() => setOpen(o => !o)}>
+                <div className='q-card-left'>
+                    <span className='q-index-badge'>Q{index + 1}</span>
+                    <p className='q-question-text'>{item.question}</p>
                 </div>
-            )}
-        </div>
-    )
-}
+                <div className='q-card-actions'>
+                    {isTechnical && (
+                        <span className={`diff-badge diff-badge--${diff}`}>
+                            {diff}
+                        </span>
+                    )}
+                    <button onClick={copyToClipboard} className='action-icon-btn' title='Copy Question'>
+                        {copied ? <span className='copied-txt'>Copied</span> : <Copy size={14} />}
+                    </button>
+                    <button onClick={toggleBookmark} className={`action-icon-btn ${isBookmarked ? 'active' : ''}`} title='Bookmark'>
+                        <Bookmark size={14} fill={isBookmarked ? "currentColor" : "none"} />
+                    </button>
+                    <button onClick={toggleCompleted} className={`action-icon-btn ${isCompleted ? 'active-check' : ''}`} title='Mark Completed'>
+                        <CheckCircle2 size={14} />
+                    </button>
+                    <span className={`chevron-indicator ${open ? 'rotated' : ''}`}>
+                        <ChevronDown size={16} />
+                    </span>
+                </div>
+            </div>
 
-const RoadMapDay = ({ day }) => (
-    <div className='roadmap-day'>
-        <div className='roadmap-day__header'>
-            <span className='roadmap-day__badge'>Day {day.day}</span>
-            <h3 className='roadmap-day__focus'>{day.focus}</h3>
-        </div>
-        <ul className='roadmap-day__tasks'>
-            {day.tasks.map((task, i) => (
-                <li key={i}>
-                    <span className='roadmap-day__bullet' />
-                    {task}
-                </li>
-            ))}
-        </ul>
-    </div>
-)
+            <AnimatePresence>
+                {open && (
+                    <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className='q-card-dropdown'
+                    >
+                        <div className='inner-content-block'>
+                            <div className='qa-section'>
+                                <span className='section-tag intention-tag'>Intention</span>
+                                <p>{item.intention}</p>
+                            </div>
+                            
+                            <div className='qa-section'>
+                                <span className='section-tag answer-tag'>Ideal Answer</span>
+                                <p>{item.answer}</p>
+                            </div>
 
-// ── Main Component ────────────────────────────────────────────────────────────
+                            {item.tips && (
+                                <div className='qa-section'>
+                                    <span className='section-tag tips-tag'>Structure Tips</span>
+                                    <p>{item.tips}</p>
+                                </div>
+                            )}
+
+                            {item.sampleAnswer && (
+                                <div className='qa-section'>
+                                    <span className='section-tag sample-tag'>Sample STAR Answer</span>
+                                    <div className='star-sample-text'>{item.sampleAnswer}</div>
+                                </div>
+                            )}
+
+                            {item.commonMistakes && (
+                                <div className='qa-section'>
+                                    <span className='section-tag error-tag'>Common Mistakes</span>
+                                    <p className='mistake-text'>{item.commonMistakes}</p>
+                                </div>
+                            )}
+
+                            {item.followUpQuestions && item.followUpQuestions.length > 0 && (
+                                <div className='qa-section'>
+                                    <span className='section-tag follow-tag'>Follow-up Questions</span>
+                                    <ul className='followups-list'>
+                                        {item.followUpQuestions.map((fq, i) => <li key={i}>{fq}</li>)}
+                                    </ul>
+                                </div>
+                            )}
+
+                            <div className='qa-notes-field'>
+                                <label>My Interview Notes</label>
+                                <textarea 
+                                    placeholder='Type your personal answers, bullet points, or reminders here...'
+                                    value={notes}
+                                    onChange={handleNotesChange}
+                                />
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
+
+// ── Main Interview Component ──────────────────────────────────────────
 const Interview = () => {
-    const [ activeNav, setActiveNav ] = useState('technical')
-    const [ isNavOpen, setIsNavOpen ] = useState(false)
+    const [activeNav, setActiveNav] = useState('technical')
+    const [isNavOpen, setIsNavOpen] = useState(false)
+    const [searchQuery, setSearchQuery] = useState("")
+    const [difficultyFilter, setDifficultyFilter] = useState("all")
+    const [isDarkTheme, setIsDarkTheme] = useState(true)
+    const [copiedShare, setCopiedShare] = useState(false)
+    
+    // Roadmap tracking
+    const [selectedRoadmapTab, setSelectedRoadmapTab] = useState("all")
+    const [completedDays, setCompletedDays] = useState({})
+
     const { report, getReportById, loading, getResumePdf } = useInterview()
     const { interviewId } = useParams()
+    const navigate = useNavigate()
 
     useEffect(() => {
         if (interviewId) {
             getReportById(interviewId)
         }
-    }, [ interviewId ])
+    }, [interviewId])
 
+    useEffect(() => {
+        // Load roadmap completion status
+        const savedDays = JSON.parse(localStorage.getItem(`roadmap_days_${interviewId}`) || '{}');
+        setCompletedDays(savedDays);
+    }, [interviewId]);
 
+    const handleDayToggle = (dayNum) => {
+        const nextState = { ...completedDays, [dayNum]: !completedDays[dayNum] };
+        setCompletedDays(nextState);
+        localStorage.setItem(`roadmap_days_${interviewId}`, JSON.stringify(nextState));
+    };
+
+    const handleShare = () => {
+        const url = window.location.href;
+        navigator.clipboard.writeText(url);
+        setCopiedShare(true);
+        setTimeout(() => setCopiedShare(false), 2000);
+    };
 
     if (loading || !report) {
         return (
-            <main className='loading-screen'>
-                <h1>Loading your interview plan...</h1>
+            <main className='loading-screen-premium'>
+                <div className='loader-container'>
+                    <Brain size={48} className='brain-icon pulse' />
+                    <h1>Loading your strategy report...</h1>
+                </div>
             </main>
         )
     }
 
     const scoreColor =
-        report.matchScore >= 80 ? 'score--high' :
-            report.matchScore >= 60 ? 'score--mid' : 'score--low'
+        report.matchScore >= 75 ? 'score--high' :
+            report.matchScore >= 55 ? 'score--mid' : 'score--low'
 
+    // Match metrics fallback values
+    const metrics = report.matchScoreDetails || {
+        overallScore: report.matchScore || 0,
+        technicalSkills: Math.min(100, (report.matchScore || 0) + 5),
+        softSkills: Math.max(0, (report.matchScore || 0) - 10),
+        experienceMatch: Math.max(0, (report.matchScore || 0) - 5),
+        keywordMatch: Math.max(0, (report.matchScore || 0) - 8),
+        educationMatch: Math.max(0, (report.matchScore || 0) + 12),
+        projectsMatch: Math.max(0, (report.matchScore || 0) - 3)
+    };
+
+    // Filter Technical Questions
+    const filteredTech = (report.technicalQuestions || []).filter(q => {
+        const matchesQuery = q.question.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                             q.answer.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesDiff = difficultyFilter === 'all' || q.difficulty === difficultyFilter;
+        return matchesQuery && matchesDiff;
+    });
+
+    // Filter Behavioral Questions
+    const filteredBeh = (report.behavioralQuestions || []).filter(q => {
+        return q.question.toLowerCase().includes(searchQuery.toLowerCase()) || 
+               (q.answer && q.answer.toLowerCase().includes(searchQuery.toLowerCase()));
+    });
+
+    // Roadmap items filter
+    const categories = ["all", "DSA", "OOP", "DBMS", "OS", "Computer Networks", "System Design", "Projects", "HR Interview", "Mock Interviews"];
+    const filteredRoadmap = (report.preparationPlan || []).filter(item => {
+        return selectedRoadmapTab === 'all' || item.category === selectedRoadmapTab;
+    });
+
+    // Calculate Roadmap Progress
+    const totalDays = report.preparationPlan?.length || 30;
+    const completedDaysCount = Object.values(completedDays).filter(Boolean).length;
+    const roadmapProgressPercentage = Math.round((completedDaysCount / totalDays) * 100);
 
     return (
-        <div className='interview-page'>
+        <div className={`interview-page-dashboard ${isDarkTheme ? 'dark-theme' : 'light-theme'}`}>
+            
+            {/* Top SaaS bar */}
+            <header className='report-header-premium'>
+                <div className='left-actions'>
+                    <button onClick={() => navigate('/')} className='back-dash-btn'>
+                        <ArrowLeft size={16} />
+                        Dashboard
+                    </button>
+                    <h1>{report.title || 'Interview Report'}</h1>
+                </div>
+
+                <div className='right-actions'>
+                    <button onClick={handleShare} className='saas-icon-btn'>
+                        <Share2 size={16} />
+                        {copiedShare ? 'Link Copied' : 'Share Plan'}
+                    </button>
+                    <button onClick={() => getResumePdf(interviewId)} className='saas-icon-btn premium-btn'>
+                        <Download size={16} />
+                        Download ATS Resume
+                    </button>
+                    <button onClick={() => setIsDarkTheme(!isDarkTheme)} className='theme-toggle-btn'>
+                        {isDarkTheme ? <Sun size={16} /> : <Moon size={16} />}
+                    </button>
+                </div>
+            </header>
+
             {/* Mobile Header Bar */}
             <div className='interview-mobile-header'>
                 <button className='hamburger-btn' aria-label='Open Navigation' onClick={() => setIsNavOpen(true)}>
@@ -101,83 +357,223 @@ const Interview = () => {
 
             <div className='interview-layout'>
 
-                {/* ── Left Nav ── */}
+                {/* ── Left Nav / Sidebar ── */}
                 <nav className={`interview-nav ${isNavOpen ? 'interview-nav--open' : ''}`}>
                     <div className="nav-content">
                         <div className="nav-header-mobile">
-                            <span className="nav-header-title">Sections</span>
+                            <span className="nav-header-title">Menu Sections</span>
                             <button className="nav-close-btn" onClick={() => setIsNavOpen(false)}>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
                         </div>
+                        
                         <p className='interview-nav__label'>Sections</p>
-                        {NAV_ITEMS.map(item => (
-                            <button
-                                key={item.id}
-                                className={`interview-nav__item ${activeNav === item.id ? 'interview-nav__item--active' : ''}`}
-                                onClick={() => {
-                                    setActiveNav(item.id)
-                                    setIsNavOpen(false)
-                                }}
-                            >
-                                <span className='interview-nav__icon'>{item.icon}</span>
-                                {item.label}
-                            </button>
-                        ))}
+                        <div className='nav-links-wrapper'>
+                            {NAV_ITEMS.map(item => (
+                                <button
+                                    key={item.id}
+                                    className={`interview-nav__item ${activeNav === item.id ? 'interview-nav__item--active' : ''}`}
+                                    onClick={() => {
+                                        setActiveNav(item.id)
+                                        setIsNavOpen(false)
+                                    }}
+                                >
+                                    <span className='interview-nav__icon'>{item.icon}</span>
+                                    {item.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                    <button
-                        onClick={() => {
-                            getResumePdf(interviewId)
-                            setIsNavOpen(false)
-                        }}
-                        className='button primary-button' >
-                        <svg height={"0.8rem"} style={{ marginRight: "0.8rem" }} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M10.6144 17.7956 11.492 15.7854C12.2731 13.9966 13.6789 12.5726 15.4325 11.7942L17.8482 10.7219C18.6162 10.381 18.6162 9.26368 17.8482 8.92277L15.5079 7.88394C13.7092 7.08552 12.2782 5.60881 11.5105 3.75894L10.6215 1.61673C10.2916.821765 9.19319.821767 8.8633 1.61673L7.97427 3.75892C7.20657 5.60881 5.77553 7.08552 3.97685 7.88394L1.63658 8.92277C.868537 9.26368.868536 10.381 1.63658 10.7219L4.0523 11.7942C5.80589 12.5726 7.21171 13.9966 7.99275 15.7854L8.8704 17.7956C9.20776 18.5682 10.277 18.5682 10.6144 17.7956ZM19.4014 22.6899 19.6482 22.1242C20.0882 21.1156 20.8807 20.3125 21.8695 19.8732L22.6299 19.5353C23.0412 19.3526 23.0412 18.7549 22.6299 18.5722L21.9121 18.2532C20.8978 17.8026 20.0911 16.9698 19.6586 15.9269L19.4052 15.3156C19.2285 14.8896 18.6395 14.8896 18.4628 15.3156L18.2094 15.9269C17.777 16.9698 16.9703 17.8026 15.956 18.2532L15.2381 18.5722C14.8269 18.7549 14.8269 19.3526 15.2381 19.5353L15.9985 19.8732C16.9874 20.3125 17.7798 21.1156 18.2198 22.1242L18.4667 22.6899C18.6473 23.104 19.2207 23.104 19.4014 22.6899Z"></path></svg>
-                        Download Resume
-                    </button>
+
+                    <PracticeTimer />
                 </nav>
 
                 <div className='interview-divider' />
 
                 {/* ── Center Content ── */}
                 <main className='interview-content'>
+                    
+                    {/* Search & Filter Bar (shown for technical & behavioral questions) */}
+                    {activeNav !== 'roadmap' && (
+                        <div className='search-filter-panel-glass'>
+                            <div className='search-box-wrapper'>
+                                <Search size={16} className='search-icon' />
+                                <input 
+                                    type='text' 
+                                    placeholder='Search questions, answers, and tags...'
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+
+                            {activeNav === 'technical' && (
+                                <div className='difficulty-filters'>
+                                    <Filter size={14} className='filter-icon' />
+                                    {['all', 'easy', 'medium', 'hard'].map(level => (
+                                        <button 
+                                            key={level} 
+                                            className={`diff-filter-btn ${difficultyFilter === level ? 'active' : ''}`}
+                                            onClick={() => setDifficultyFilter(level)}
+                                        >
+                                            {level}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Content Section: Technical Questions */}
                     {activeNav === 'technical' && (
-                        <section>
+                        <section className='section-block'>
                             <div className='content-header'>
-                                <h2>Technical Questions</h2>
-                                <span className='content-header__count'>{report.technicalQuestions.length} questions</span>
+                                <h2>Technical Interview Prep</h2>
+                                <span className='content-header__count'>{filteredTech.length} matching</span>
                             </div>
                             <div className='q-list'>
-                                {report.technicalQuestions.map((q, i) => (
-                                    <QuestionCard key={i} item={q} index={i} />
-                                ))}
+                                {filteredTech.length > 0 ? (
+                                    filteredTech.map((q, i) => (
+                                        <QuestionCard key={i} item={q} index={i} interviewId={interviewId} isTechnical={true} />
+                                    ))
+                                ) : (
+                                    <p className='no-results-text'>No technical questions matches your search query or filters.</p>
+                                )}
                             </div>
                         </section>
                     )}
 
+                    {/* Content Section: Behavioral Questions */}
                     {activeNav === 'behavioral' && (
-                        <section>
+                        <section className='section-block'>
                             <div className='content-header'>
-                                <h2>Behavioral Questions</h2>
-                                <span className='content-header__count'>{report.behavioralQuestions.length} questions</span>
+                                <h2>Behavioral & Scenario Prep</h2>
+                                <span className='content-header__count'>{filteredBeh.length} matching</span>
                             </div>
                             <div className='q-list'>
-                                {report.behavioralQuestions.map((q, i) => (
-                                    <QuestionCard key={i} item={q} index={i} />
-                                ))}
+                                {filteredBeh.length > 0 ? (
+                                    filteredBeh.map((q, i) => (
+                                        <QuestionCard key={i} item={q} index={i} interviewId={interviewId} isTechnical={false} />
+                                    ))
+                                ) : (
+                                    <p className='no-results-text'>No behavioral questions matches your search query.</p>
+                                )}
                             </div>
                         </section>
                     )}
 
+                    {/* Content Section: Roadmap */}
                     {activeNav === 'roadmap' && (
-                        <section>
-                            <div className='content-header'>
-                                <h2>Preparation Road Map</h2>
-                                <span className='content-header__count'>{report.preparationPlan.length}-day plan</span>
-                            </div>
-                            <div className='roadmap-list'>
-                                {report.preparationPlan.map((day) => (
-                                    <RoadMapDay key={day.day} day={day} />
-                                ))}
+                        <section className='section-block'>
+                            <div className='roadmap-premium-container'>
+                                <div className='roadmap-top-stats'>
+                                    <div className='road-stat-card'>
+                                        <h3>Roadmap Progress</h3>
+                                        <div className='road-progress-fill-bar'>
+                                            <div className='bar-inner' style={{ width: `${roadmapProgressPercentage}%` }}></div>
+                                        </div>
+                                        <span className='percentage-txt'>{roadmapProgressPercentage}% Days Completed ({completedDaysCount}/{totalDays})</span>
+                                    </div>
+                                </div>
+
+                                <div className='roadmap-category-tabs'>
+                                    {categories.map(cat => (
+                                        <button
+                                            key={cat}
+                                            className={`cat-tab-btn ${selectedRoadmapTab === cat ? 'active' : ''}`}
+                                            onClick={() => setSelectedRoadmapTab(cat)}
+                                        >
+                                            {cat === 'all' ? 'All Days' : cat}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className='roadmap-list-premium'>
+                                    {filteredRoadmap.length > 0 ? (
+                                        filteredRoadmap.map((dayItem) => {
+                                            const isChecked = !!completedDays[dayItem.day];
+                                            return (
+                                                <div 
+                                                    key={dayItem.day} 
+                                                    className={`roadmap-day-card ${isChecked ? 'roadmap-day-card--completed' : ''}`}
+                                                >
+                                                    <div className='day-card-header'>
+                                                        <div className='day-left-meta'>
+                                                            <input 
+                                                                type='checkbox' 
+                                                                id={`check-day-${dayItem.day}`} 
+                                                                checked={isChecked}
+                                                                onChange={() => handleDayToggle(dayItem.day)}
+                                                            />
+                                                            <label htmlFor={`check-day-${dayItem.day}`} className='day-number-label'>
+                                                                Day {dayItem.day}
+                                                            </label>
+                                                            <span className='category-tag'>{dayItem.category}</span>
+                                                        </div>
+                                                        <div className='day-right-meta'>
+                                                            <span className='time-meta'>{dayItem.estimatedTime || '3 hours'}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className='day-card-body'>
+                                                        <h3 className='day-topic-title'>{dayItem.topic || dayItem.focus}</h3>
+                                                        
+                                                        {dayItem.theory && (
+                                                            <div className='day-section-block'>
+                                                                <strong>Theory Concepts:</strong>
+                                                                <p>{dayItem.theory}</p>
+                                                            </div>
+                                                        )}
+
+                                                        {dayItem.practiceProblems && dayItem.practiceProblems.length > 0 && (
+                                                            <div className='day-section-block'>
+                                                                <strong>Practice Problems:</strong>
+                                                                <ul className='bullet-details-list'>
+                                                                    {dayItem.practiceProblems.map((prob, pi) => <li key={pi}>{prob}</li>)}
+                                                                </ul>
+                                                            </div>
+                                                        )}
+
+                                                        {dayItem.interviewQuestions && dayItem.interviewQuestions.length > 0 && (
+                                                            <div className='day-section-block'>
+                                                                <strong>Standard Questions:</strong>
+                                                                <ul className='bullet-details-list font-italic'>
+                                                                    {dayItem.interviewQuestions.map((q, qi) => <li key={qi}>"{q}"</li>)}
+                                                                </ul>
+                                                            </div>
+                                                        )}
+
+                                                        {dayItem.resources && dayItem.resources.length > 0 && (
+                                                            <div className='day-section-block'>
+                                                                <strong>Suggested Resources:</strong>
+                                                                <div className='resources-chips-row'>
+                                                                    {dayItem.resources.map((res, ri) => (
+                                                                        <span key={ri} className='res-chip'>{res}</span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {dayItem.tasks && dayItem.tasks.length > 0 && (
+                                                            <div className='day-section-block tasks-listing'>
+                                                                <strong>Daily Subtasks Checklist:</strong>
+                                                                <ul className='checklist-tasks'>
+                                                                    {dayItem.tasks.map((task, ti) => (
+                                                                        <li key={ti}>
+                                                                            <span className='bullet-circle' />
+                                                                            {task}
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )
+                                        })
+                                    ) : (
+                                        <p className='no-results-text'>No roadmap days fit this selected category.</p>
+                                    )}
+                                </div>
                             </div>
                         </section>
                     )}
@@ -185,30 +581,113 @@ const Interview = () => {
 
                 <div className='interview-divider' />
 
-                {/* ── Right Sidebar ── */}
+                {/* ── Right Sidebar (Statistics & Match Metrics) ── */}
                 <aside className='interview-sidebar'>
-
-                    {/* Match Score */}
-                    <div className='match-score'>
-                        <p className='match-score__label'>Match Score</p>
-                        <div className={`match-score__ring ${scoreColor}`}>
-                            <span className='match-score__value'>{report.matchScore}</span>
-                            <span className='match-score__pct'>%</span>
+                    
+                    {/* Visual Match Metrics Card */}
+                    <div className='match-details-card-glass'>
+                        <div className='card-header-label'>Match Fit Analysis</div>
+                        
+                        <div className='match-progress-radial'>
+                            <div className={`radial-ring-value ${scoreColor}`}>
+                                <span className='score-num'>{metrics.overallScore}</span>
+                                <span className='score-symbol'>%</span>
+                            </div>
+                            <span className='overall-verdict'>Overall ATS Fit</span>
                         </div>
-                        <p className='match-score__sub'>Strong match for this role</p>
+
+                        <div className='metrics-bars-list'>
+                            <div className='bar-field'>
+                                <div className='bar-label-group'>
+                                    <span>Technical Skills</span>
+                                    <span>{metrics.technicalSkills}%</span>
+                                </div>
+                                <div className='bar-track'><div className='bar-fill green' style={{ width: `${metrics.technicalSkills}%` }}></div></div>
+                            </div>
+
+                            <div className='bar-field'>
+                                <div className='bar-label-group'>
+                                    <span>Soft Skills</span>
+                                    <span>{metrics.softSkills}%</span>
+                                </div>
+                                <div className='bar-track'><div className='bar-fill blue' style={{ width: `${metrics.softSkills}%` }}></div></div>
+                            </div>
+
+                            <div className='bar-field'>
+                                <div className='bar-label-group'>
+                                    <span>Experience Fit</span>
+                                    <span>{metrics.experienceMatch}%</span>
+                                </div>
+                                <div className='bar-track'><div className='bar-fill purple' style={{ width: `${metrics.experienceMatch}%` }}></div></div>
+                            </div>
+
+                            <div className='bar-field'>
+                                <div className='bar-label-group'>
+                                    <span>Keyword Match</span>
+                                    <span>{metrics.keywordMatch}%</span>
+                                </div>
+                                <div className='bar-track'><div className='bar-fill yellow' style={{ width: `${metrics.keywordMatch}%` }}></div></div>
+                            </div>
+
+                            <div className='bar-field'>
+                                <div className='bar-label-group'>
+                                    <span>Education Match</span>
+                                    <span>{metrics.educationMatch}%</span>
+                                </div>
+                                <div className='bar-track'><div className='bar-fill cyan' style={{ width: `${metrics.educationMatch}%` }}></div></div>
+                            </div>
+
+                            <div className='bar-field'>
+                                <div className='bar-label-group'>
+                                    <span>Projects Relevance</span>
+                                    <span>{metrics.projectsMatch}%</span>
+                                </div>
+                                <div className='bar-track'><div className='bar-fill orange' style={{ width: `${metrics.projectsMatch}%` }}></div></div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className='sidebar-divider' />
+                    {/* Skill Gaps Analysis */}
+                    <div className='skill-gaps-glass-panel'>
+                        <div className='card-header-label'>Identified Gaps</div>
+                        <div className='gap-elements-list'>
+                            {report.skillGaps && report.skillGaps.length > 0 ? (
+                                report.skillGaps.map((gap, i) => (
+                                    <div key={i} className={`gap-card-wrapper priority-${gap.priority || gap.severity}`}>
+                                        <div className='gap-top-line'>
+                                            <span className='gap-title-text'>{gap.skill}</span>
+                                            <span className={`priority-pill priority-pill--${gap.priority || gap.severity}`}>
+                                                {gap.priority || gap.severity}
+                                            </span>
+                                        </div>
+                                        
+                                        {gap.whyItMatters && (
+                                            <p className='gap-explanation-text'>
+                                                <strong>JD Importance:</strong> {gap.whyItMatters}
+                                            </p>
+                                        )}
 
-                    {/* Skill Gaps */}
-                    <div className='skill-gaps'>
-                        <p className='skill-gaps__label'>Skill Gaps</p>
-                        <div className='skill-gaps__list'>
-                            {report.skillGaps.map((gap, i) => (
-                                <span key={i} className={`skill-tag skill-tag--${gap.severity}`}>
-                                    {gap.skill}
-                                </span>
-                            ))}
+                                        {gap.estimatedTime && (
+                                            <div className='gap-time-label'>
+                                                <span>Est. Study:</span> <strong>{gap.estimatedTime}</strong>
+                                            </div>
+                                        )}
+
+                                        {gap.learningResources && gap.learningResources.length > 0 && (
+                                            <div className='gap-resources-block'>
+                                                <strong>Resources:</strong>
+                                                <ul className='gap-resource-links'>
+                                                    {gap.learningResources.map((res, ri) => (
+                                                        <li key={ri}>{res}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            ) : (
+                                <p className='no-gaps-message'>No critical skill gaps identified. Candidate matches target JD criteria perfectly!</p>
+                            )}
                         </div>
                     </div>
 

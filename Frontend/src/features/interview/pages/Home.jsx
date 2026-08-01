@@ -2,6 +2,106 @@ import React, { useState, useRef, useEffect } from 'react'
 import "../style/home.scss"
 import { useInterview } from '../hooks/useInterview.js'
 import { useNavigate } from 'react-router'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+    Brain, Sparkles, FileText, Upload, Plus, Award, 
+    TrendingUp, Calendar, AlertTriangle, ArrowRight, BarChart2, BookOpen
+} from 'lucide-react'
+
+// Premium Loading Screen Messages
+const LOADING_MESSAGES = [
+    "Analyzing Resume details...",
+    "Reading Target Job Description...",
+    "Matching Core Skills...",
+    "Calculating ATS Relevance...",
+    "Identifying Profile Skill Gaps...",
+    "Compiling Technical Questions (Easy/Med/Hard)...",
+    "Structuring Behavioral STAR Scenarios...",
+    "Customizing 30-Day Preparation Roadmap...",
+    "Polishing ATS Resume template..."
+];
+
+const AiLoader = () => {
+    const [msgIndex, setMsgIndex] = useState(0);
+    const [progress, setProgress] = useState(0);
+
+    useEffect(() => {
+        const msgInterval = setInterval(() => {
+            setMsgIndex(prev => (prev + 1) % LOADING_MESSAGES.length);
+        }, 2500);
+
+        const progInterval = setInterval(() => {
+            setProgress(prev => {
+                if (prev >= 98) return prev;
+                return prev + 1;
+            });
+        }, 250);
+
+        return () => {
+            clearInterval(msgInterval);
+            clearInterval(progInterval);
+        };
+    }, []);
+
+    const estimatedTime = Math.max(1, Math.round((100 - progress) * 0.3));
+
+    return (
+        <main className='loading-screen-premium'>
+            <div className="loader-container">
+                <div className="gradient-ring-container">
+                    <motion.div 
+                        className="rotating-gradient-ring"
+                        animate={{ rotate: 360 }}
+                        transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+                    />
+                    <div className="brain-core">
+                        <motion.div
+                            animate={{ scale: [1, 1.15, 1] }}
+                            transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
+                        >
+                            <Brain size={48} className="brain-icon" />
+                        </motion.div>
+                        <motion.div 
+                            className="scanning-beam"
+                            animate={{ y: [-35, 35, -35] }}
+                            transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
+                        />
+                    </div>
+                </div>
+
+                <div className="glowing-circle circle-1"></div>
+                <div className="glowing-circle circle-2"></div>
+
+                <div className="loading-text-box">
+                    <AnimatePresence mode="wait">
+                        <motion.p
+                            key={msgIndex}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.4 }}
+                            className="loading-message-text"
+                        >
+                            {LOADING_MESSAGES[msgIndex]}
+                        </motion.p>
+                    </AnimatePresence>
+                    <p className="loading-subtext">Estimated remaining: {estimatedTime}s</p>
+                </div>
+
+                <div className="progress-bar-container">
+                    <div className="progress-bar-bg">
+                        <motion.div 
+                            className="progress-bar-fill"
+                            animate={{ width: `${progress}%` }}
+                            transition={{ ease: "easeInOut" }}
+                        />
+                    </div>
+                    <span className="progress-percentage">{progress}%</span>
+                </div>
+            </div>
+        </main>
+    );
+};
 
 const Home = () => {
     const { loading, generateReport, reports, getReports } = useInterview()
@@ -10,13 +110,13 @@ const Home = () => {
     const [ selectedFile, setSelectedFile ] = useState(null)
     const [ error, setError ] = useState("")
     const resumeInputRef = useRef()
+    const formRef = useRef(null)
 
     const navigate = useNavigate()
 
-    // Fetch reports on component mount
     useEffect(() => {
         getReports().catch(err => {
-            console.error("Failed to fetch reports on mount:", err)
+            console.error("Failed to fetch reports:", err)
         })
     }, [])
 
@@ -29,7 +129,7 @@ const Home = () => {
         }
 
         if (!selectedFile && !selfDescription.trim()) {
-            setError("Please upload a resume PDF/DOCX or enter a quick self-description.")
+            setError("Please upload a resume PDF/DOCX or enter a self-description.")
             return
         }
 
@@ -49,97 +149,138 @@ const Home = () => {
         }
     }
 
+    const scrollToForm = () => {
+        formRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Calculate stats
+    const totalPlans = reports?.length || 0;
+    const avgMatchScore = totalPlans > 0 
+        ? Math.round(reports.reduce((acc, curr) => acc + (curr.matchScore || 0), 0) / totalPlans) 
+        : 0;
+    const highMatchPlans = reports?.filter(r => r.matchScore >= 75).length || 0;
+
     if (loading) {
-        return (
-            <main className='loading-screen'>
-                <div className="spinner"></div>
-                <h1>Loading your interview plan...</h1>
-                <p>This may take up to 30 seconds. Please do not close or refresh this page.</p>
-            </main>
-        )
+        return <AiLoader />
     }
 
     return (
-        <div className='home-page'>
-            {/* Page Header */}
-            <header className='page-header'>
-                <h1>Create Your Custom <span className='highlight'>Interview Plan</span></h1>
-                <p>Let our AI analyze the job requirements and your unique profile to build a winning strategy.</p>
+        <div className='home-page-dashboard'>
+            {/* Top SaaS Header */}
+            <header className='dashboard-header'>
+                <div className='header-logo'>
+                    <Brain className='logo-icon' />
+                    <h1>AI Interview <span className='highlight'>Master</span></h1>
+                </div>
+                <button onClick={scrollToForm} className='quick-new-btn'>
+                    <Plus size={16} />
+                    New Interview Plan
+                </button>
             </header>
+
+            {/* Statistics Cards */}
+            <section className='stats-container'>
+                <motion.div 
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className='stat-card'
+                >
+                    <div className='stat-icon-wrapper blue-icon'>
+                        <Award size={20} />
+                    </div>
+                    <div className='stat-details'>
+                        <h3>Avg Match Score</h3>
+                        <p>{avgMatchScore}%</p>
+                        <span className='stat-footer'>Across all generated profiles</span>
+                    </div>
+                </motion.div>
+
+                <motion.div 
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className='stat-card'
+                >
+                    <div className='stat-icon-wrapper green-icon'>
+                        <BarChart2 size={20} />
+                    </div>
+                    <div className='stat-details'>
+                        <h3>Total Plans</h3>
+                        <p>{totalPlans}</p>
+                        <span className='stat-footer'>Custom roadmaps generated</span>
+                    </div>
+                </motion.div>
+
+                <motion.div 
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className='stat-card'
+                >
+                    <div className='stat-icon-wrapper orange-icon'>
+                        <TrendingUp size={20} />
+                    </div>
+                    <div className='stat-details'>
+                        <h3>High Match Fit</h3>
+                        <p>{highMatchPlans}</p>
+                        <span className='stat-footer'>Plans scoring 75% or higher</span>
+                    </div>
+                </motion.div>
+            </section>
 
             {/* Error Message */}
             {error && (
-                <div className='error-box' style={{
-                    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-                    border: '1px solid #ff6b6b',
-                    borderRadius: '8px',
-                    padding: '1rem',
-                    color: '#ff6b6b',
-                    marginBottom: '1.5rem',
-                    maxWidth: '800px',
-                    marginLeft: 'auto',
-                    marginRight: 'auto',
-                    textAlign: 'center'
-                }}>
-                    {error}
+                <div className='error-box'>
+                    <AlertTriangle size={18} />
+                    <span>{error}</span>
                 </div>
             )}
 
-            {/* Main Card */}
-            <div className='interview-card'>
-                <div className='interview-card__body'>
-
-                    {/* Left Panel - Job Description */}
-                    <div className='panel panel--left'>
-                        <div className='panel__header'>
-                            <span className='panel__icon'>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></svg>
-                            </span>
-                            <h2>Target Job Description</h2>
-                            <span className='badge badge--required'>Required</span>
-                        </div>
-                        <textarea
-                            onChange={(e) => { setJobDescription(e.target.value) }}
-                            value={jobDescription}
-                            className='panel__textarea'
-                            placeholder={`Paste the full job description here...\ne.g. 'Senior Frontend Engineer at Google requires proficiency in React, TypeScript, and large-scale system design...'`}
-                            maxLength={5000}
-                        />
-                        <div className='char-counter'>{jobDescription.length} / 5000 chars</div>
+            {/* Main Interactive Grid */}
+            <div className='dashboard-grid'>
+                
+                {/* Creation panel */}
+                <section ref={formRef} className='create-card-glass'>
+                    <div className='card-header-premium'>
+                        <Sparkles size={20} className='header-sparkle' />
+                        <h2>Generate New Strategy</h2>
                     </div>
 
-                    {/* Vertical Divider */}
-                    <div className='panel-divider' />
-
-                    {/* Right Panel - Profile */}
-                    <div className='panel panel--right'>
-                        <div className='panel__header'>
-                            <span className='panel__icon'>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
-                            </span>
-                            <h2>Your Profile</h2>
+                    <div className='panels-container'>
+                        <div className='panel-field'>
+                            <label className='panel-label'>
+                                <span>Target Job Description</span>
+                                <span className='badge badge--required'>Required</span>
+                            </label>
+                            <textarea
+                                onChange={(e) => setJobDescription(e.target.value)}
+                                value={jobDescription}
+                                className='jd-textarea'
+                                placeholder="Paste the target job description here..."
+                                maxLength={5000}
+                            />
+                            <div className='char-counter'>{jobDescription.length} / 5000</div>
                         </div>
 
-                        {/* Upload Resume */}
-                        <div className='upload-section'>
-                            <label className='section-label'>
-                                Upload Resume
+                        <div className='panel-divider-horiz' />
+
+                        <div className='panel-field'>
+                            <label className='panel-label'>
+                                <span>Upload Resume</span>
                                 <span className='badge badge--best'>Best Results</span>
                             </label>
-                            <label className='dropzone' htmlFor='resume'>
-                                <span className='dropzone__icon'>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16" /><line x1="12" y1="12" x2="12" y2="21" /><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" /></svg>
+                            <label className='dropzone-premium' htmlFor='resume'>
+                                <Upload size={24} className='upload-arrow' />
+                                <span className='dropzone-title'>
+                                    {selectedFile ? selectedFile.name : "Click to select resume file"}
                                 </span>
-                                <p className='dropzone__title'>
-                                    {selectedFile ? selectedFile.name : "Click to upload or drag & drop"}
-                                </p>
-                                <p className='dropzone__subtitle'>PDF or DOCX (Max 3MB)</p>
+                                <span className='dropzone-subtitle'>PDF or DOCX (Max 3MB)</span>
                                 <input 
                                     ref={resumeInputRef} 
                                     hidden 
                                     type='file' 
                                     id='resume' 
-                                    name='resume' 
                                     accept='.pdf,.docx' 
                                     onChange={(e) => {
                                         setError("");
@@ -147,64 +288,70 @@ const Home = () => {
                                     }}
                                 />
                             </label>
-                        </div>
 
-                        {/* OR Divider */}
-                        <div className='or-divider'><span>OR</span></div>
+                            <div className='divider-or'><span>OR</span></div>
 
-                        {/* Quick Self-Description */}
-                        <div className='self-description'>
-                            <label className='section-label' htmlFor='selfDescription'>Quick Self-Description</label>
+                            <label className='panel-label'>Quick Self-Description</label>
                             <textarea
-                                onChange={(e) => { setSelfDescription(e.target.value) }}
+                                onChange={(e) => setSelfDescription(e.target.value)}
                                 value={selfDescription}
-                                id='selfDescription'
-                                name='selfDescription'
-                                className='panel__textarea panel__textarea--short'
-                                placeholder="Briefly describe your experience, key skills, and years of experience if you don't have a resume handy..."
+                                className='self-textarea'
+                                placeholder="State your experience, key skills, and tools if you don't have a resume handy..."
                             />
                         </div>
-
-                        {/* Info Box */}
-                        <div className='info-box'>
-                            <span className='info-box__icon'>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" stroke="#1a1f27" strokeWidth="2" /><line x1="12" y1="16" x2="12.01" y2="16" stroke="#1a1f27" strokeWidth="2" /></svg>
-                            </span>
-                            <p>Either a <strong>Resume</strong> or a <strong>Self Description</strong> is required to generate a personalized plan.</p>
-                        </div>
                     </div>
-                </div>
 
-                {/* Card Footer */}
-                <div className='interview-card__footer'>
-                    <span className='footer-info'>AI-Powered Strategy Generation &bull; Approx 30s</span>
-                    <button
-                        onClick={handleGenerateReport}
-                        className='generate-btn'>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" /></svg>
-                        Generate My Interview Strategy
-                    </button>
-                </div>
+                    <div className='create-footer'>
+                        <span className='footer-ai-note'>AI Analysis takes approx 30 seconds</span>
+                        <button onClick={handleGenerateReport} className='primary-saas-btn'>
+                            <Sparkles size={16} />
+                            Generate Interview Strategy
+                        </button>
+                    </div>
+                </section>
+
+                {/* Recent Plans / Sidebar */}
+                <section className='recent-reports-panel'>
+                    <div className='panel-header-premium'>
+                        <Calendar size={18} />
+                        <h2>My Recent Reports</h2>
+                    </div>
+
+                    {reports && reports.length > 0 ? (
+                        <div className='recent-list'>
+                            {reports.map((report, idx) => (
+                                <motion.div 
+                                    key={report._id} 
+                                    className='recent-item-glass' 
+                                    onClick={() => navigate(`/interview/${report._id}`)}
+                                    whileHover={{ y: -3, scale: 1.01 }}
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: idx * 0.05 }}
+                                >
+                                    <div className='recent-title-group'>
+                                        <h3>{report.title || 'Untitled Role'}</h3>
+                                        <p>Created on {new Date(report.createdAt).toLocaleDateString()}</p>
+                                    </div>
+                                    <div className='recent-score-ring'>
+                                        <span className={`score-value ${report.matchScore >= 75 ? 'high' : report.matchScore >= 55 ? 'mid' : 'low'}`}>
+                                            {report.matchScore}%
+                                        </span>
+                                    </div>
+                                    <ArrowRight size={16} className='arrow-link' />
+                                </motion.div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className='no-reports-box'>
+                            <BookOpen size={24} />
+                            <p>No reports generated yet. Get started by entering details on the left.</p>
+                        </div>
+                    )}
+                </section>
             </div>
 
-            {/* Recent Reports List */}
-            {reports && reports.length > 0 && (
-                <section className='recent-reports'>
-                    <h2>My Recent Interview Plans</h2>
-                    <ul className='reports-list'>
-                        {reports.map(report => (
-                            <li key={report._id} className='report-item' onClick={() => navigate(`/interview/${report._id}`)}>
-                                <h3>{report.title || 'Untitled Position'}</h3>
-                                <p className='report-meta'>Generated on {new Date(report.createdAt).toLocaleDateString()}</p>
-                                <p className={`match-score ${report.matchScore >= 80 ? 'score--high' : report.matchScore >= 60 ? 'score--mid' : 'score--low'}`}>Match Score: {report.matchScore}%</p>
-                            </li>
-                        ))}
-                    </ul>
-                </section>
-            )}
-
-            {/* Page Footer */}
-            <footer className='page-footer'>
+            <footer className='dashboard-footer'>
                 <a href='#'>Privacy Policy</a>
                 <a href='#'>Terms of Service</a>
                 <a href='#'>Help Center</a>

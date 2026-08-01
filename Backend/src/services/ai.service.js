@@ -15,32 +15,65 @@ function getAiClient() {
     });
 }
 
-const interviewReportSchema = z.object({
-    matchScore: z.number().describe("A score between 0 and 100 indicating how well the candidate's profile matches the job description"),
-    technicalQuestions: z.array(z.object({
-        question: z.string().describe("The technical question can be asked in the interview"),
-        intention: z.string().describe("The intention of interviewer behind asking this question"),
-        answer: z.string().describe("How to answer this question, what points to cover, what approach to take etc.")
-    })).describe("Technical questions that can be asked in the interview along with their intention and how to answer them"),
-    behavioralQuestions: z.array(z.object({
-        question: z.string().describe("The behavioral question can be asked in the interview"),
-        intention: z.string().describe("The intention of interviewer behind asking this question"),
-        answer: z.string().describe("How to answer this question, what points to cover, what approach to take etc.")
-    })).describe("Behavioral questions that can be asked in the interview along with their intention and how to answer them"),
+// ── Zod Schemas for Parallel Generation ────────────────────────────────────────
+
+const overviewSchema = z.object({
+    title: z.string().describe("The target job title analyzed"),
+    matchScore: z.number().describe("Overall match score between 0 and 100"),
+    matchScoreDetails: z.object({
+        overallScore: z.number().describe("Same as matchScore"),
+        technicalSkills: z.number().describe("Score for technical capabilities matching (0-100)"),
+        softSkills: z.number().describe("Score for behavioral/soft skills matching (0-100)"),
+        experienceMatch: z.number().describe("Score for career duration and roles match (0-100)"),
+        keywordMatch: z.number().describe("Score for matching resume keywords to JD (0-100)"),
+        educationMatch: z.number().describe("Score for academic and certification match (0-100)"),
+        projectsMatch: z.number().describe("Score for relevance of projects listed (0-100)")
+    }).describe("Granular match analysis parameters"),
     skillGaps: z.array(z.object({
-        skill: z.string().describe("The skill which the candidate is lacking"),
-        severity: z.enum([ "low", "medium", "high" ]).describe("The severity of this skill gap, i.e. how important is this skill for the job and how much it can impact the candidate's chances")
-    })).describe("List of skill gaps in the candidate's profile along with their severity"),
+        skill: z.string().describe("The name of the missing/weak skill"),
+        severity: z.enum([ "low", "medium", "high" ]).describe("Gap severity"),
+        whyItMatters: z.string().describe("Why this skill is critical for the target role"),
+        learningResources: z.array(z.string()).describe("2-3 high-quality learning links, docs, or course names"),
+        estimatedTime: z.string().describe("Time needed to learn this skill, e.g. '10 hours', '2 weeks'"),
+        priority: z.enum([ "low", "medium", "high" ]).describe("Action priority")
+    })).describe("List of identified skill gaps")
+});
+
+const questionsSchema = z.object({
+    technicalQuestions: z.array(z.object({
+        question: z.string().describe("The interview question"),
+        intention: z.string().describe("Why the interviewer asks this question"),
+        answer: z.string().describe("Ideal direct explanation or code snippet structure"),
+        difficulty: z.enum([ "easy", "medium", "hard" ]).describe("Question difficulty"),
+        commonMistakes: z.string().describe("Common pitfalls candidates make when answering"),
+        followUpQuestions: z.array(z.string()).describe("2-3 natural follow-up questions an interviewer might ask next")
+    })).describe("20-25 technical questions covering easy, medium, and hard difficulty"),
+    behavioralQuestions: z.array(z.object({
+        question: z.string().describe("The behavioral scenario question"),
+        intention: z.string().describe("Intention behind the behavioral question"),
+        answer: z.string().describe("Short answer approach advice"),
+        tips: z.string().describe("Tips for structure (STAR format guidelines)"),
+        sampleAnswer: z.string().describe("A full example response using the STAR method (Situation, Task, Action, Result)")
+    })).describe("15-20 behavioral questions")
+});
+
+const roadmapSchema = z.object({
     preparationPlan: z.array(z.object({
-        day: z.number().describe("The day number in the preparation plan, starting from 1"),
-        focus: z.string().describe("The main focus of this day in the preparation plan, e.g. data structures, system design, mock interviews etc."),
-        tasks: z.array(z.string()).describe("List of tasks to be done on this day to follow the preparation plan, e.g. read a specific book or article, solve a set of problems, watch a video etc.")
-    })).describe("A day-wise preparation plan for the candidate to follow in order to prepare for the interview effectively"),
-    title: z.string().describe("The title of the job for which the interview report is generated"),
+        day: z.number().describe("Day number from 1 to 30"),
+        focus: z.string().describe("Focus area, e.g. DSA, System Design, Mock Interview"),
+        topic: z.string().describe("Specific topic of the day"),
+        theory: z.string().describe("Theoretical concepts to read and understand"),
+        practiceProblems: z.array(z.string()).describe("2-3 specific practice problem titles or descriptions"),
+        interviewQuestions: z.array(z.string()).describe("2-3 common interview questions on this topic"),
+        resources: z.array(z.string()).describe("Online resources or search terms to learn this"),
+        estimatedTime: z.string().describe("Time required, e.g. '3 hours'"),
+        category: z.enum([ "DSA", "OOP", "DBMS", "OS", "Computer Networks", "System Design", "Projects", "HR Interview", "Mock Interviews" ]).describe("Syllabus stream category"),
+        tasks: z.array(z.string()).describe("Step-by-step checkboxes list of tasks")
+    })).describe("Exactly 30 day-by-day plan entries")
 });
 
 const resumePdfSchema = z.object({
-    html: z.string().describe("The HTML content of the resume which can be converted to PDF using any library like puppeteer")
+    html: z.string().describe("ATS-optimized premium HTML code of the resume")
 });
 
 // Helper function to call Groq with retry and JSON validation
@@ -66,15 +99,13 @@ async function callGroqWithJsonRetry(systemPrompt, userPrompt, schema, retries =
                 throw new Error("Empty response received from Groq API.");
             }
 
-            // Attempt to parse JSON
             let parsedData;
             try {
                 parsedData = JSON.parse(content);
             } catch (parseErr) {
-                throw new Error(`JSON parsing failed: ${parseErr.message}. Raw response: ${content}`);
+                throw new Error(`JSON parsing failed: ${parseErr.message}`);
             }
 
-            // Validate against the Zod schema
             const validationResult = schema.safeParse(parsedData);
             if (!validationResult.success) {
                 throw new Error(`Schema validation failed: ${validationResult.error.message}`);
@@ -85,47 +116,49 @@ async function callGroqWithJsonRetry(systemPrompt, userPrompt, schema, retries =
             console.error(`Groq API Attempt ${attempt} failed:`, error.message);
             lastError = error;
             if (attempt < retries) {
-                await new Promise((resolve) => setTimeout(resolve, 1000));
+                await new Promise((resolve) => setTimeout(resolve, 1500));
             }
         }
     }
-    throw new Error(`Failed to get a valid response from Groq after ${retries} attempts. Last error: ${lastError.message}`);
+    throw new Error(`Failed after ${retries} attempts. Last error: ${lastError.message}`);
 }
 
 async function generateInterviewReport({ resume, selfDescription, jobDescription }) {
-    const systemPrompt = `You are an expert technical interviewer and senior HR specialist.
-Generate a highly professional, detailed, and realistic interview preparation report.
-The output MUST be a valid JSON object matching the requested schema.
-Ensure that:
-1. The 'matchScore' is a realistic number between 0 and 100 based on the candidate's profile fit for the target job description.
-2. 'technicalQuestions' contains realistic, role-specific, challenging technical questions with clear intention and detailed answers/approaches.
-3. 'behavioralQuestions' contains realistic situational and behavioral questions (incorporate STAR methodology guidelines in the answers) with clear intention and detailed answers.
-4. 'skillGaps' lists actual skills from the job description that are missing or weak in the resume/self-description, with appropriate severity.
-5. 'preparationPlan' is a highly structured, day-wise preparation plan containing actionable tasks for the candidate.
-6. 'title' is the job title.
+    const candidateContext = `Candidate Resume:\n${resume || "Not provided"}\n\nCandidate Self-Description:\n${selfDescription || "Not provided"}`;
+    const targetJD = `Target Job Description:\n${jobDescription}`;
 
-The output must be formatted as a JSON object. Do not include markdown code block syntax (like \`\`\`json) inside the JSON response itself.`;
+    // Prompt 1: Overview & Match Details
+    const overviewSystem = `You are a senior ATS Match analyst. Analyze the resume/self-description against the target job description. Generate matching statistics (0-100) and identify missing skill gaps. Make sure 'matchScore' matches 'matchScoreDetails.overallScore'.`;
+    const overviewUser = `${candidateContext}\n\n${targetJD}\n\nProvide the response in this JSON schema format:\n${JSON.stringify(zodToJsonSchema(overviewSchema))}`;
 
-    const userPrompt = `Analyze the following candidate details against the job description and generate an interview report.
+    // Prompt 2: Technical & Behavioral Questions
+    const questionsSystem = `You are an elite technical interviewer. Generate exactly 20-25 high-quality technical questions (mix of easy, medium, and hard difficulty) and exactly 15-20 behavioral questions customized to the candidate's profile and the target job description. Provide intentions, ideal answers, common mistakes, and follow-up questions. Behavioral answers must use structural STAR guidelines.`;
+    const questionsUser = `${candidateContext}\n\n${targetJD}\n\nProvide the response in this JSON schema format:\n${JSON.stringify(zodToJsonSchema(questionsSchema))}`;
 
-Candidate Resume:
-${resume || "Not provided"}
-
-Candidate Self-Description:
-${selfDescription || "Not provided"}
-
-Target Job Description:
-${jobDescription}
-
-Provide the response in the following JSON schema format:
-${JSON.stringify(zodToJsonSchema(interviewReportSchema), null, 2)}`;
+    // Prompt 3: 30-Day Preparation Roadmap
+    const roadmapSystem = `You are a computer science mentor. Generate a detailed 30-day study plan categorizing each day's study tasks (DSA, OOP, DBMS, OS, Computer Networks, System Design, Projects, HR Interview, Mock Interviews) to fill the candidate's gaps for the target job description. Every day MUST have topic, theory, practice problems, interview questions, resources, estimatedTime, category, and tasks.`;
+    const roadmapUser = `${candidateContext}\n\n${targetJD}\n\nProvide the response in this JSON schema format:\n${JSON.stringify(zodToJsonSchema(roadmapSchema))}`;
 
     try {
-        const report = await callGroqWithJsonRetry(systemPrompt, userPrompt, interviewReportSchema);
-        return report;
+        console.log("Generating report components in parallel...");
+        const [overviewResult, questionsResult, roadmapResult] = await Promise.all([
+            callGroqWithJsonRetry(overviewSystem, overviewUser, overviewSchema),
+            callGroqWithJsonRetry(questionsSystem, questionsUser, questionsSchema),
+            callGroqWithJsonRetry(roadmapSystem, roadmapUser, roadmapSchema)
+        ]);
+
+        return {
+            title: overviewResult.title,
+            matchScore: overviewResult.matchScore,
+            matchScoreDetails: overviewResult.matchScoreDetails,
+            skillGaps: overviewResult.skillGaps,
+            technicalQuestions: questionsResult.technicalQuestions,
+            behavioralQuestions: questionsResult.behavioralQuestions,
+            preparationPlan: roadmapResult.preparationPlan
+        };
     } catch (error) {
-        console.error("AI Generation error in generateInterviewReport:", error);
-        throw new Error(`Failed to generate interview report: ${error.message}`);
+        console.error("Parallel AI Generation error:", error);
+        throw new Error(`Failed to generate comprehensive report: ${error.message}`);
     }
 }
 
@@ -140,11 +173,12 @@ async function generatePdfFromHtml(htmlContent) {
         const pdfBuffer = await page.pdf({
             format: "A4",
             margin: {
-                top: "20mm",
-                bottom: "20mm",
+                top: "15mm",
+                bottom: "15mm",
                 left: "15mm",
                 right: "15mm"
-            }
+            },
+            printBackground: true
         });
         return pdfBuffer;
     } finally {
@@ -153,18 +187,13 @@ async function generatePdfFromHtml(htmlContent) {
 }
 
 async function generateResumePdf({ resume, selfDescription, jobDescription }) {
-    const systemPrompt = `You are a professional resume writer and career coach.
+    const systemPrompt = `You are a professional executive resume writer.
 Generate a clean, highly professional, ATS-friendly resume in HTML format.
-The HTML content should be tailored for the given job description, highlighting the candidate's strengths and relevant experience.
-Ensure the HTML:
-- Uses modern, elegant typography (e.g., Arial, Helvetica, system-ui, clean line height, proper spacing).
-- Is structured logically with semantic HTML (sections for header/contact, professional summary, work experience, education, skills, projects).
-- Uses subtle, professional styling (e.g., deep slate/navy accents, clean borders/dividers) and is strictly 1-2 pages long.
-- Is clean, standard HTML/CSS compatible with Puppeteer's PDF converter.
-- Sounds completely natural, professional, and human-written. Do not use generic AI buzzwords or placeholders.
-- Is ATS-friendly (uses standard headings, text-based layouts, no complex nested tables/graphics).
-
-The output MUST be a JSON object with a single field "html" containing the HTML string of the resume.`;
+Ensure the HTML is structured beautifully using modern CSS:
+- Dark slate headings (#1e293b), crimson accents (#e1034d), and dark text (#334155).
+- Clear layout columns or list details for Header, Summary, Skills, Work Experience, Education, Projects.
+- ATS compatible: standard headings, simple text elements, no overlapping layers, print-ready.
+- Embed all CSS inside a <style> tag in the HTML head. Ensure a clean page outline.`;
 
     const userPrompt = `Generate a tailored, ATS-friendly resume.
 
@@ -179,7 +208,7 @@ ${jobDescription}
 
 Provide the response in the following JSON schema format:
 {
-  "html": "The HTML content of the resume"
+  "html": "The HTML content of the resume with premium styling"
 }`;
 
     try {
