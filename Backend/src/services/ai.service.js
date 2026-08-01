@@ -24,11 +24,16 @@ const overviewSchema = z.object({
         overallScore: z.number().describe("Same as matchScore"),
         technicalSkills: z.number().describe("Score for technical capabilities matching (0-100)"),
         softSkills: z.number().describe("Score for behavioral/soft skills matching (0-100)"),
-        experienceMatch: z.number().describe("Score for career duration and roles match (0-100)"),
+        resumeQuality: z.number().describe("Score for resume layout, clarity and impact (0-100)"),
         keywordMatch: z.number().describe("Score for matching resume keywords to JD (0-100)"),
         educationMatch: z.number().describe("Score for academic and certification match (0-100)"),
+        experienceMatch: z.number().describe("Score for career duration and roles match (0-100)"),
         projectsMatch: z.number().describe("Score for relevance of projects listed (0-100)")
     }).describe("Granular match analysis parameters"),
+    atsAnalysis: z.string().describe("Detailed professional ATS summary analyzing fit, resume parsed format, and recommendations"),
+    strengths: z.array(z.string()).describe("List of 3-5 major professional strengths of the candidate relative to the JD"),
+    weaknesses: z.array(z.string()).describe("List of 3-5 key gaps or weaknesses of the candidate relative to the JD"),
+    recommendations: z.array(z.string()).describe("List of 3-5 actionable recommendations to improve the profile"),
     skillGaps: z.array(z.object({
         skill: z.string().describe("The name of the missing/weak skill"),
         severity: z.enum([ "low", "medium", "high" ]).describe("Gap severity"),
@@ -41,20 +46,20 @@ const overviewSchema = z.object({
 
 const questionsSchema = z.object({
     technicalQuestions: z.array(z.object({
-        question: z.string().describe("The interview question"),
+        question: z.string().describe("The technical interview question"),
         intention: z.string().describe("Why the interviewer asks this question"),
         answer: z.string().describe("Ideal direct explanation or code snippet structure"),
         difficulty: z.enum([ "easy", "medium", "hard" ]).describe("Question difficulty"),
         commonMistakes: z.string().describe("Common pitfalls candidates make when answering"),
         followUpQuestions: z.array(z.string()).describe("2-3 natural follow-up questions an interviewer might ask next")
-    })).describe("20-25 technical questions covering easy, medium, and hard difficulty"),
+    })).describe("Exactly 10 to 15 technical questions covering easy, medium, and hard difficulty"),
     behavioralQuestions: z.array(z.object({
         question: z.string().describe("The behavioral scenario question"),
         intention: z.string().describe("Intention behind the behavioral question"),
         answer: z.string().describe("Short answer approach advice"),
         tips: z.string().describe("Tips for structure (STAR format guidelines)"),
         sampleAnswer: z.string().describe("A full example response using the STAR method (Situation, Task, Action, Result)")
-    })).describe("15-20 behavioral questions")
+    })).describe("Exactly 10 to 15 behavioral questions")
 });
 
 const roadmapSchema = z.object({
@@ -128,15 +133,18 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
     const targetJD = `Target Job Description:\n${jobDescription}`;
 
     // Prompt 1: Overview & Match Details
-    const overviewSystem = `You are a senior ATS Match analyst. Analyze the resume/self-description against the target job description. Generate matching statistics (0-100) and identify missing skill gaps. Make sure 'matchScore' matches 'matchScoreDetails.overallScore'.`;
+    const overviewSystem = `You are a senior ATS Match analyst. Analyze the resume/self-description against the target job description.
+    Generate matching statistics (0-100) and identify missing skill gaps.
+    Make sure 'matchScore' matches 'matchScoreDetails.overallScore'.
+    Provide a detailed professional 'atsAnalysis' summary (minimum 3 paragraphs), 'strengths' list, 'weaknesses' list, and actionable 'recommendations' list.`;
     const overviewUser = `${candidateContext}\n\n${targetJD}\n\nProvide the response in this JSON schema format:\n${JSON.stringify(zodToJsonSchema(overviewSchema))}`;
 
     // Prompt 2: Technical & Behavioral Questions
-    const questionsSystem = `You are an elite technical interviewer. Generate exactly 20-25 high-quality technical questions (mix of easy, medium, and hard difficulty) and exactly 15-20 behavioral questions customized to the candidate's profile and the target job description. Provide intentions, ideal answers, common mistakes, and follow-up questions. Behavioral answers must use structural STAR guidelines.`;
+    const questionsSystem = `You are an elite technical interviewer. Generate exactly 10 to 15 high-quality technical questions (mix of easy, medium, and hard difficulty) and exactly 10 to 15 behavioral questions customized to the candidate's profile and the target job description. Provide intentions, ideal answers, common mistakes, and follow-up questions. Behavioral answers must use structural STAR guidelines.`;
     const questionsUser = `${candidateContext}\n\n${targetJD}\n\nProvide the response in this JSON schema format:\n${JSON.stringify(zodToJsonSchema(questionsSchema))}`;
 
     // Prompt 3: 30-Day Preparation Roadmap
-    const roadmapSystem = `You are a computer science mentor. Generate a detailed 30-day study plan categorizing each day's study tasks (DSA, OOP, DBMS, OS, Computer Networks, System Design, Projects, HR Interview, Mock Interviews) to fill the candidate's gaps for the target job description. Every day MUST have topic, theory, practice problems, interview questions, resources, estimatedTime, category, and tasks.`;
+    const roadmapSystem = `You are a computer science mentor. Generate a detailed 30-day study plan categorizing each day's study tasks (DSA, OOP, DBMS, OS, Computer Networks, System Design, Projects, HR Interview, Mock Interviews) to fill the candidate's gaps for the target job description. Every day MUST have topic, theory, practice problems, interview questions, resources, estimatedTime, category, and tasks. Generate exactly 30 days.`;
     const roadmapUser = `${candidateContext}\n\n${targetJD}\n\nProvide the response in this JSON schema format:\n${JSON.stringify(zodToJsonSchema(roadmapSchema))}`;
 
     try {
@@ -151,6 +159,10 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
             title: overviewResult.title,
             matchScore: overviewResult.matchScore,
             matchScoreDetails: overviewResult.matchScoreDetails,
+            atsAnalysis: overviewResult.atsAnalysis,
+            strengths: overviewResult.strengths,
+            weaknesses: overviewResult.weaknesses,
+            recommendations: overviewResult.recommendations,
             skillGaps: overviewResult.skillGaps,
             technicalQuestions: questionsResult.technicalQuestions,
             behavioralQuestions: questionsResult.behavioralQuestions,
@@ -192,8 +204,8 @@ Generate a clean, highly professional, ATS-friendly resume in HTML format.
 Ensure the HTML is structured beautifully using modern CSS:
 - Dark slate headings (#1e293b), crimson accents (#e1034d), and dark text (#334155).
 - Clear layout columns or list details for Header, Summary, Skills, Work Experience, Education, Projects.
-- ATS compatible: standard headings, simple text elements, no overlapping layers, print-ready.
-- Embed all CSS inside a <style> tag in the HTML head. Ensure a clean page outline.`;
+- ATS compatible: print-ready, text-based.
+- Embed all CSS inside a <style> tag in the HTML head.`;
 
     const userPrompt = `Generate a tailored, ATS-friendly resume.
 

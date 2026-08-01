@@ -5,15 +5,33 @@ import { useNavigate, useParams } from 'react-router'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
     Clock, Copy, Bookmark, CheckCircle2, ChevronDown, Share2, 
-    Download, Search, Filter, Play, Pause, RotateCcw, HelpCircle, 
-    BookOpen, Terminal, Sparkles, Heart, Sun, Moon, ArrowLeft, MessageSquare, AlertCircle, Brain
+    Download, Search, Filter, Play, Pause, RotateCcw, 
+    BookOpen, Terminal, Sparkles, Sun, Moon, ArrowLeft, MessageSquare, AlertCircle, Brain, Award, ShieldAlert, Check, X
 } from 'lucide-react'
 
 const NAV_ITEMS = [
+    { id: 'ats', label: 'ATS Analysis & Fit', icon: <Award size={16} /> },
     { id: 'technical', label: 'Technical Questions', icon: <Terminal size={16} /> },
     { id: 'behavioral', label: 'Behavioral Questions', icon: <MessageSquare size={16} /> },
     { id: 'roadmap', label: 'Road Map', icon: <BookOpen size={16} /> },
 ]
+
+// ── Skeleton Loader Component ──────────────────────────────────────────
+const ReportSkeleton = () => (
+    <div className="skeleton-container">
+        <header className="skeleton-header shimmer"></header>
+        <div className="skeleton-layout">
+            <nav className="skeleton-nav shimmer"></nav>
+            <main className="skeleton-main">
+                <div className="skeleton-search shimmer"></div>
+                <div className="skeleton-card shimmer" style={{ height: '180px' }}></div>
+                <div className="skeleton-card shimmer" style={{ height: '100px' }}></div>
+                <div className="skeleton-card shimmer" style={{ height: '100px' }}></div>
+            </main>
+            <aside className="skeleton-sidebar shimmer"></aside>
+        </div>
+    </div>
+);
 
 // ── Practice Timer Component ───────────────────────────────────────────
 const PracticeTimer = () => {
@@ -93,7 +111,6 @@ const QuestionCard = ({ item, index, interviewId, isTechnical = true }) => {
             setIsBookmarked(true);
         }
         localStorage.setItem('interview_bookmarks', JSON.stringify(bookmarks));
-        // dispatch custom event to update dashboard/other components if needed
         window.dispatchEvent(new Event('storage'));
     };
 
@@ -167,12 +184,12 @@ const QuestionCard = ({ item, index, interviewId, isTechnical = true }) => {
                         <div className='inner-content-block'>
                             <div className='qa-section'>
                                 <span className='section-tag intention-tag'>Intention</span>
-                                <p>{item.intention}</p>
+                                <p>{item.intention || "No specific intentions specified."}</p>
                             </div>
                             
                             <div className='qa-section'>
                                 <span className='section-tag answer-tag'>Ideal Answer</span>
-                                <p>{item.answer}</p>
+                                <p>{item.answer || "No sample answer was populated."}</p>
                             </div>
 
                             {item.tips && (
@@ -223,12 +240,13 @@ const QuestionCard = ({ item, index, interviewId, isTechnical = true }) => {
 
 // ── Main Interview Component ──────────────────────────────────────────
 const Interview = () => {
-    const [activeNav, setActiveNav] = useState('technical')
+    const [activeNav, setActiveNav] = useState('ats')
     const [isNavOpen, setIsNavOpen] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
     const [difficultyFilter, setDifficultyFilter] = useState("all")
     const [isDarkTheme, setIsDarkTheme] = useState(true)
     const [copiedShare, setCopiedShare] = useState(false)
+    const [fetchError, setFetchError] = useState(false)
     
     // Roadmap tracking
     const [selectedRoadmapTab, setSelectedRoadmapTab] = useState("all")
@@ -238,14 +256,23 @@ const Interview = () => {
     const { interviewId } = useParams()
     const navigate = useNavigate()
 
+    const loadReport = async () => {
+        setFetchError(false)
+        try {
+            await getReportById(interviewId)
+        } catch (err) {
+            console.error("Error loading report:", err)
+            setFetchError(true)
+        }
+    }
+
     useEffect(() => {
         if (interviewId) {
-            getReportById(interviewId)
+            loadReport()
         }
     }, [interviewId])
 
     useEffect(() => {
-        // Load roadmap completion status
         const savedDays = JSON.parse(localStorage.getItem(`roadmap_days_${interviewId}`) || '{}');
         setCompletedDays(savedDays);
     }, [interviewId]);
@@ -263,12 +290,21 @@ const Interview = () => {
         setTimeout(() => setCopiedShare(false), 2000);
     };
 
-    if (loading || !report) {
+    if (loading) {
+        return <ReportSkeleton />
+    }
+
+    if (fetchError || !report) {
         return (
             <main className='loading-screen-premium'>
-                <div className='loader-container'>
-                    <Brain size={48} className='brain-icon pulse' />
-                    <h1>Loading your strategy report...</h1>
+                <div className='error-retry-card'>
+                    <ShieldAlert size={48} className='error-alert-icon' />
+                    <h1>Failed to load Interview Report</h1>
+                    <p>There was a connection issue or the report ID does not exist.</p>
+                    <div className='error-buttons'>
+                        <button onClick={loadReport} className='retry-btn'>Retry Loading</button>
+                        <button onClick={() => navigate('/')} className='back-dash-btn-flat'>Go to Dashboard</button>
+                    </div>
                 </div>
             </main>
         )
@@ -278,14 +314,15 @@ const Interview = () => {
         report.matchScore >= 75 ? 'score--high' :
             report.matchScore >= 55 ? 'score--mid' : 'score--low'
 
-    // Match metrics fallback values
+    // Match metrics layout mapper
     const metrics = report.matchScoreDetails || {
         overallScore: report.matchScore || 0,
         technicalSkills: Math.min(100, (report.matchScore || 0) + 5),
         softSkills: Math.max(0, (report.matchScore || 0) - 10),
-        experienceMatch: Math.max(0, (report.matchScore || 0) - 5),
+        resumeQuality: Math.min(100, (report.matchScore || 0) + 2),
         keywordMatch: Math.max(0, (report.matchScore || 0) - 8),
         educationMatch: Math.max(0, (report.matchScore || 0) + 12),
+        experienceMatch: Math.max(0, (report.matchScore || 0) - 5),
         projectsMatch: Math.max(0, (report.matchScore || 0) - 3)
     };
 
@@ -357,7 +394,7 @@ const Interview = () => {
 
             <div className='interview-layout'>
 
-                {/* ── Left Nav / Sidebar ── */}
+                {/* ── Left Nav ── */}
                 <nav className={`interview-nav ${isNavOpen ? 'interview-nav--open' : ''}`}>
                     <div className="nav-content">
                         <div className="nav-header-mobile">
@@ -393,8 +430,8 @@ const Interview = () => {
                 {/* ── Center Content ── */}
                 <main className='interview-content'>
                     
-                    {/* Search & Filter Bar (shown for technical & behavioral questions) */}
-                    {activeNav !== 'roadmap' && (
+                    {/* Search & Filter Bar */}
+                    {activeNav !== 'roadmap' && activeNav !== 'ats' && (
                         <div className='search-filter-panel-glass'>
                             <div className='search-box-wrapper'>
                                 <Search size={16} className='search-icon' />
@@ -421,6 +458,73 @@ const Interview = () => {
                                 </div>
                             )}
                         </div>
+                    )}
+
+                    {/* Content Section: ATS Analysis & Fit */}
+                    {activeNav === 'ats' && (
+                        <section className='section-block'>
+                            <div className='content-header'>
+                                <h2>ATS Analysis & Profile Match</h2>
+                                <span className='content-header__count'>Metrics fit</span>
+                            </div>
+                            
+                            <div className='ats-analysis-card-glass'>
+                                <h3>Expert ATS Feedback</h3>
+                                <p className='ats-summary-text'>
+                                    {report.atsAnalysis || "Your resume demonstrates solid relevance matching for this target position. Below are detailed strengths, weaknesses, and optimization paths compiled by our AI."}
+                                </p>
+                            </div>
+
+                            <div className='profile-strengths-weaknesses'>
+                                <div className='strengths-block-glass'>
+                                    <div className='block-title-row green'>
+                                        <Check size={18} />
+                                        <h3>Key Strengths</h3>
+                                    </div>
+                                    <ul className='bullet-saas-list'>
+                                        {report.strengths && report.strengths.length > 0 ? (
+                                            report.strengths.map((str, i) => <li key={i}>{str}</li>)
+                                        ) : (
+                                            <>
+                                                <li>Strong alignment with target role technical qualifications.</li>
+                                                <li>Relevant experience highlighted in project details.</li>
+                                            </>
+                                        )}
+                                    </ul>
+                                </div>
+
+                                <div className='weaknesses-block-glass'>
+                                    <div className='block-title-row red'>
+                                        <X size={18} />
+                                        <h3>Identified Gaps</h3>
+                                    </div>
+                                    <ul className='bullet-saas-list'>
+                                        {report.weaknesses && report.weaknesses.length > 0 ? (
+                                            report.weaknesses.map((weak, i) => <li key={i}>{weak}</li>)
+                                        ) : (
+                                            <>
+                                                <li>Lack of specialized keywords corresponding to target Job Description.</li>
+                                                <li>Missing key tooling references requested in target metrics.</li>
+                                            </>
+                                        )}
+                                    </ul>
+                                </div>
+                            </div>
+
+                            {report.recommendations && report.recommendations.length > 0 && (
+                                <div className='recommendations-card-glass'>
+                                    <h3>Actionable Profile Improvement Tips</h3>
+                                    <ul className='number-saas-list'>
+                                        {report.recommendations.map((rec, i) => (
+                                            <li key={i}>
+                                                <span className='step-num'>{i + 1}</span>
+                                                <p>{rec}</p>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </section>
                     )}
 
                     {/* Content Section: Technical Questions */}
@@ -581,7 +685,7 @@ const Interview = () => {
 
                 <div className='interview-divider' />
 
-                {/* ── Right Sidebar (Statistics & Match Metrics) ── */}
+                {/* ── Right Sidebar ── */}
                 <aside className='interview-sidebar'>
                     
                     {/* Visual Match Metrics Card */}
@@ -599,7 +703,7 @@ const Interview = () => {
                         <div className='metrics-bars-list'>
                             <div className='bar-field'>
                                 <div className='bar-label-group'>
-                                    <span>Technical Skills</span>
+                                    <span>Technical Score</span>
                                     <span>{metrics.technicalSkills}%</span>
                                 </div>
                                 <div className='bar-track'><div className='bar-fill green' style={{ width: `${metrics.technicalSkills}%` }}></div></div>
@@ -607,7 +711,7 @@ const Interview = () => {
 
                             <div className='bar-field'>
                                 <div className='bar-label-group'>
-                                    <span>Soft Skills</span>
+                                    <span>Soft Skills Score</span>
                                     <span>{metrics.softSkills}%</span>
                                 </div>
                                 <div className='bar-track'><div className='bar-fill blue' style={{ width: `${metrics.softSkills}%` }}></div></div>
@@ -615,10 +719,10 @@ const Interview = () => {
 
                             <div className='bar-field'>
                                 <div className='bar-label-group'>
-                                    <span>Experience Fit</span>
-                                    <span>{metrics.experienceMatch}%</span>
+                                    <span>Resume Quality</span>
+                                    <span>{metrics.resumeQuality}%</span>
                                 </div>
-                                <div className='bar-track'><div className='bar-fill purple' style={{ width: `${metrics.experienceMatch}%` }}></div></div>
+                                <div className='bar-track'><div className='bar-fill purple' style={{ width: `${metrics.resumeQuality}%` }}></div></div>
                             </div>
 
                             <div className='bar-field'>
@@ -639,10 +743,10 @@ const Interview = () => {
 
                             <div className='bar-field'>
                                 <div className='bar-label-group'>
-                                    <span>Projects Relevance</span>
-                                    <span>{metrics.projectsMatch}%</span>
+                                    <span>Experience Match</span>
+                                    <span>{metrics.experienceMatch}%</span>
                                 </div>
-                                <div className='bar-track'><div className='bar-fill orange' style={{ width: `${metrics.projectsMatch}%` }}></div></div>
+                                <div className='bar-track'><div className='bar-fill orange' style={{ width: `${metrics.experienceMatch}%` }}></div></div>
                             </div>
                         </div>
                     </div>

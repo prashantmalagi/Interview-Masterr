@@ -128,9 +128,10 @@ const matchScoreDetailsSchema = new mongoose.Schema({
     overallScore: { type: Number, default: 0 },
     technicalSkills: { type: Number, default: 0 },
     softSkills: { type: Number, default: 0 },
-    experienceMatch: { type: Number, default: 0 },
+    resumeQuality: { type: Number, default: 0 },
     keywordMatch: { type: Number, default: 0 },
     educationMatch: { type: Number, default: 0 },
+    experienceMatch: { type: Number, default: 0 },
     projectsMatch: { type: Number, default: 0 }
 }, {
     _id: false
@@ -156,6 +157,19 @@ const interviewReportSchema = new mongoose.Schema({
         type: matchScoreDetailsSchema,
         default: () => ({})
     },
+    atsAnalysis: {
+        type: String,
+        default: ""
+    },
+    strengths: [ {
+        type: String
+    } ],
+    weaknesses: [ {
+        type: String
+    } ],
+    recommendations: [ {
+        type: String
+    } ],
     technicalQuestions: [ technicalQuestionSchema ],
     behavioralQuestions: [ behavioralQuestionSchema ],
     skillGaps: [ skillGapSchema ],
