@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
     Clock, Copy, Bookmark, CheckCircle2, ChevronDown, Share2, 
     Download, Search, Filter, Play, Pause, RotateCcw, HelpCircle, 
-    BookOpen, Terminal, Sparkles, Heart, Sun, Moon, ArrowLeft, MessageSquare, AlertCircle
+    BookOpen, Terminal, Sparkles, Heart, Sun, Moon, ArrowLeft, MessageSquare, AlertCircle, Brain
 } from 'lucide-react'
 
 const NAV_ITEMS = [
