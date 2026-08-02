@@ -62,48 +62,24 @@ export const useInterview = () => {
         }
     }
 
-    const getResumePdf = async (interviewReportId) => {
-        setLoading(true)
+    const getResumePdf = async (interviewReportId, username = "Candidate") => {
         try {
             const response = await generateResumePdf({ interviewReportId })
             const blob = new Blob([ response ], { type: "application/pdf" })
             
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            if (isMobile) {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    const base64data = reader.result;
-                    const newTab = window.open();
-                    if (newTab) {
-                        newTab.document.write(`
-                            <html>
-                            <head><title>Resume PDF</title></head>
-                            <body style="margin:0;">
-                                <iframe src="${base64data}" frameborder="0" style="border:0; width:100%; height:100vh;" allowfullscreen></iframe>
-                            </body>
-                            </html>
-                        `);
-                    } else {
-                        window.location.href = base64data;
-                    }
-                };
-                reader.readAsDataURL(blob);
-            } else {
-                const url = window.URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.setAttribute("download", `resume_${interviewReportId}.pdf`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(url);
-            }
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            const fileName = `${username}_ATS_Resume.pdf`;
+            link.setAttribute("download", fileName);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
         }
         catch (error) {
             console.error("Download resume PDF hook error:", error)
-            alert("Failed to download resume PDF. Please try again.")
-        } finally {
-            setLoading(false)
+            throw error
         }
     }
 

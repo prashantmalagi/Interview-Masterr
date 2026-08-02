@@ -334,6 +334,12 @@ $severity-low:      #10b981;
     position: relative;
     border: none;
     border-radius: 0;
+
+    @media (max-width: 1024px) {
+        flex-direction: column;
+        overflow-y: auto;
+        height: calc(100vh - 65px);
+    }
 }
 
 // ── Overlay for Sidebar Drawer ─────────────────────────────────────────────────
@@ -1586,4 +1592,61 @@ $severity-low:      #10b981;
             }
         }
     }
+}
+
+// ── Custom Toast & Spinner Styles ─────────────────────────────────────────────
+.saas-notification-toast {
+    position: fixed;
+    top: 80px;
+    right: 24px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1.25rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    font-size: 0.9rem;
+    font-weight: 600;
+    backdrop-filter: blur(8px);
+    border: 1px solid transparent;
+    
+    &.toast--success {
+        background-color: rgba(16, 185, 129, 0.9);
+        color: #fff;
+        border-color: rgba(16, 185, 129, 0.2);
+    }
+    
+    &.toast--error {
+        background-color: rgba(239, 68, 68, 0.9);
+        color: #fff;
+        border-color: rgba(239, 68, 68, 0.2);
+    }
+    
+    &.toast--info {
+        background-color: rgba(59, 130, 246, 0.9);
+        color: #fff;
+        border-color: rgba(59, 130, 246, 0.2);
+    }
+}
+
+.saas-icon-btn.premium-btn.loading {
+    opacity: 0.8;
+    cursor: not-allowed;
+    
+    .spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 0.8s linear infinite;
+        display: inline-block;
+        margin-right: 0.5rem;
+        vertical-align: middle;
+    }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }

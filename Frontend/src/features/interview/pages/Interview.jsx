@@ -247,6 +247,8 @@ const Interview = () => {
     const [isDarkTheme, setIsDarkTheme] = useState(true)
     const [copiedShare, setCopiedShare] = useState(false)
     const [fetchError, setFetchError] = useState(false)
+    const [isDownloading, setIsDownloading] = useState(false)
+    const [notification, setNotification] = useState(null)
     
     // Roadmap tracking
     const [selectedRoadmapTab, setSelectedRoadmapTab] = useState("all")
@@ -255,6 +257,42 @@ const Interview = () => {
     const { report, getReportById, loading, getResumePdf } = useInterview()
     const { interviewId } = useParams()
     const navigate = useNavigate()
+
+    const showNotification = (type, message) => {
+        setNotification({ type, message });
+        setTimeout(() => {
+            setNotification(null);
+        }, 5000);
+    };
+
+    const handleDownloadResume = async () => {
+        setIsDownloading(true);
+        showNotification("info", "Generating ATS Resume PDF...");
+        try {
+            const candidateName = report?.user?.username || "Candidate";
+            await getResumePdf(interviewId, candidateName);
+            showNotification("success", "ATS Resume downloaded successfully!");
+        } catch (err) {
+            console.error("Resume download failed:", err);
+            let errMsg = "Failed to generate ATS Resume PDF.";
+            if (err.response && err.response.data instanceof Blob) {
+                try {
+                    const text = await err.response.data.text();
+                    const parsed = JSON.parse(text);
+                    if (parsed && parsed.message) {
+                        errMsg = parsed.message;
+                    }
+                } catch (e) {}
+            } else if (err.response?.data?.message) {
+                errMsg = err.response.data.message;
+            } else if (err.message) {
+                errMsg = err.message;
+            }
+            showNotification("error", errMsg);
+        } finally {
+            setIsDownloading(false);
+        }
+    };
 
     const loadReport = async () => {
         setFetchError(false)
@@ -354,6 +392,21 @@ const Interview = () => {
     return (
         <div className={`interview-page-dashboard ${isDarkTheme ? 'dark-theme' : 'light-theme'}`}>
             
+            {/* Custom Premium Toast Notifications */}
+            <AnimatePresence>
+                {notification && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                        className={`saas-notification-toast toast--${notification.type}`}
+                    >
+                        {notification.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                        <span>{notification.message}</span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Top SaaS bar */}
             <header className='report-header-premium'>
                 <div className='left-actions'>
@@ -372,9 +425,22 @@ const Interview = () => {
                         <Share2 size={16} />
                         <span>{copiedShare ? 'Link Copied' : 'Share Plan'}</span>
                     </button>
-                    <button onClick={() => getResumePdf(interviewId)} className='saas-icon-btn premium-btn'>
-                        <Download size={16} />
-                        <span>Download ATS Resume</span>
+                    <button 
+                        onClick={handleDownloadResume} 
+                        className={`saas-icon-btn premium-btn ${isDownloading ? 'loading' : ''}`}
+                        disabled={isDownloading}
+                    >
+                        {isDownloading ? (
+                            <>
+                                <span className='spinner' />
+                                <span>Generating Resume...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Download size={16} />
+                                <span>Download ATS Resume</span>
+                            </>
+                        )}
                     </button>
                     <button onClick={() => setIsDarkTheme(!isDarkTheme)} className='theme-toggle-btn' aria-label='Toggle Theme'>
                         {isDarkTheme ? <Sun size={16} /> : <Moon size={16} />}

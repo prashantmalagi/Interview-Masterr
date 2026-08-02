@@ -112,7 +112,7 @@ async function getInterviewReportByIdController(req, res) {
             })
         }
 
-        const interviewReport = await interviewReportModel.findById(interviewId)
+        const interviewReport = await interviewReportModel.findById(interviewId).populate("user")
 
         if (!interviewReport) {
             return res.status(404).json({
@@ -173,7 +173,7 @@ async function generateResumePdfController(req, res) {
             })
         }
 
-        const interviewReport = await interviewReportModel.findById(interviewReportId)
+        const interviewReport = await interviewReportModel.findById(interviewReportId).populate("user")
 
         if (!interviewReport) {
             return res.status(404).json({
@@ -200,10 +200,8 @@ async function generateResumePdfController(req, res) {
             })
         }
 
-        res.set({
-            "Content-Type": "application/pdf",
-            "Content-Disposition": `attachment; filename=resume_${interviewReportId}.pdf`
-        })
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", 'attachment; filename="ATS_Resume.pdf"');
 
         return res.send(pdfBuffer)
     } catch (error) {
