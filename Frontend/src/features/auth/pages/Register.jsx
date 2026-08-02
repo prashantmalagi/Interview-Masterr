@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router'
 import { useAuth } from '../hooks/useAuth'
 
@@ -10,6 +10,10 @@ const Register = () => {
     const [ error, setError ] = useState("")
 
     const { loading, handleRegister } = useAuth()
+    
+    useEffect(() => {
+        document.title = "AI Interview Master | Register";
+    }, []);
     
     const handleSubmit = async (e) => {
         e.preventDefault()

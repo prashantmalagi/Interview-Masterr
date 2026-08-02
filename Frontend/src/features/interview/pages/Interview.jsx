@@ -311,6 +311,14 @@ const Interview = () => {
     }, [interviewId])
 
     useEffect(() => {
+        if (report && report.title) {
+            document.title = `AI Interview Master | ${report.title}`;
+        } else {
+            document.title = "AI Interview Master | Interview Report";
+        }
+    }, [report])
+
+    useEffect(() => {
         const savedDays = JSON.parse(localStorage.getItem(`roadmap_days_${interviewId}`) || '{}');
         setCompletedDays(savedDays);
     }, [interviewId]);

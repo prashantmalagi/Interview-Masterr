@@ -115,6 +115,11 @@ const Home = () => {
     const navigate = useNavigate()
 
     useEffect(() => {
+        if (window.location.pathname === "/dashboard") {
+            document.title = "AI Interview Master | Dashboard";
+        } else {
+            document.title = "AI Interview Master | Home";
+        }
         getReports().catch(err => {
             console.error("Failed to fetch reports:", err)
         })
