@@ -121,7 +121,8 @@ async function getInterviewReportByIdController(req, res) {
         }
 
         // Explicit 403 Forbidden check
-        if (interviewReport.user.toString() !== req.user.id.toString()) {
+        const ownerId = interviewReport.user._id || interviewReport.user;
+        if (ownerId.toString() !== req.user.id.toString()) {
             return res.status(403).json({
                 message: "Access forbidden. You do not own this report."
             })
@@ -182,7 +183,8 @@ async function generateResumePdfController(req, res) {
         }
 
         // Explicit 403 Forbidden check
-        if (interviewReport.user.toString() !== req.user.id.toString()) {
+        const ownerId = interviewReport.user._id || interviewReport.user;
+        if (ownerId.toString() !== req.user.id.toString()) {
             return res.status(403).json({
                 message: "Access forbidden. You do not own this report."
             })
