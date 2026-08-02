@@ -266,17 +266,43 @@ async function generatePdfFromHtml(htmlContent) {
 }
 
 async function generateResumePdf({ resume, selfDescription, jobDescription }) {
-    const systemPrompt = `You are a professional executive resume writer.
-Generate a clean, highly professional, ATS-friendly resume in HTML format.
-Ensure the HTML is structured beautifully using modern CSS:
-- Dark slate headings (#1e293b), crimson accents (#e1034d), and dark text (#334155).
-- Clear layout columns or list details for Header, Summary, Skills, Work Experience, Education, Projects.
-- ATS compatible: print-ready, text-based.
+    const systemPrompt = `You are a professional executive resume designer and writer.
+Generate a modern, premium, ATS-friendly one-page resume in HTML format.
+Ensure it looks as if it were designed in Canva, Novorésumé, or Overleaf, but remains fully ATS-readable (machine-parsable text, clean semantic DOM structure, no images).
+
+Requirements for HTML & CSS:
+- Fonts: Use clean, professional typography (e.g. system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif).
+- Colors: White background (#ffffff), dark slate body text (#334155), deep blue/navy accent headers (#1e3a8a or #2563eb).
+- Layout: 
+  - Margin: 15mm to 20mm padding inside a container.
+  - No horizontal scroll, clean margins, A4 print layout ready.
+- Header:
+  - Candidate Name in large bold navy font (22-26px), followed by Subtitle/Target Role in a clean, smaller gray text.
+  - A compact contact information row containing Email, Phone, LinkedIn, GitHub, and Portfolio. Make sure all are styled as clickable links (<a href="url">link</a>) with blue accent color and underlined on hover. Use clean inline separator characters (like "|") or inline list elements.
+- Section Titles:
+  - Bold, uppercase, colored in deep blue (#1e3a8a).
+  - Include a thin border-bottom line under each section header (e.g. 1px solid #e2e8f0) or a left accent border.
+- Sections:
+  - CONTACT, SUMMARY, TECHNICAL SKILLS, PROJECTS, EXPERIENCE/INTERNSHIP, EDUCATION, CERTIFICATIONS, ACHIEVEMENTS.
+- Technical Skills Section:
+  - Group skills into categories (e.g., Languages, Frontend, Backend, Databases, Tools).
+  - Display them as inline bulleted elements or beautifully styled light-gray tag chips (background: #f1f5f9, padding: 4px 8px, border-radius: 4px, margin: 3px, inline-block) rather than long paragraphs, to save space and look modern.
+- Projects Section:
+  - Display each project as a clear card-like block or row.
+  - Project title (bold), tech stack in italics or a small blue label.
+  - 3-5 concise bullet points highlighting key achievements and technical contributions.
+  - Clickable links for "GitHub" and "Live Demo" if present.
+- Experience / Internship Section:
+  - Company name, role title, duration/dates, and bulleted list of responsibilities/achievements.
+- Education Section:
+  - Structured timeline or list showing Degree, Institution, Graduation Year, and GPA if available.
+- Page break safety:
+  - Avoid awkward splitting across pages: use CSS rules like "h2, h3 { page-break-after: avoid; }" and ".project-card, .experience-block, .education-block { page-break-inside: avoid; }".
 - Embed all CSS inside a <style> tag in the HTML head.`;
 
-    const userPrompt = `Generate a tailored, ATS-friendly resume.
+    const userPrompt = `Create a beautifully styled, premium, tailored, ATS-friendly one-page resume based on the following candidate details and target Job Description. Make sure all contact links and project repositories are correctly parsed and rendered as clickable <a> links.
 
-Candidate Resume Content:
+Candidate Resume Details:
 ${resume || "Not provided"}
 
 Candidate Self-Description:
@@ -285,9 +311,9 @@ ${selfDescription || "Not provided"}
 Target Job Description:
 ${jobDescription}
 
-Provide the response in the following JSON schema format:
+Ensure the output is valid JSON in this schema format:
 {
-  "html": "The HTML content of the resume with premium styling"
+  "html": "The full HTML string containing head, style, and body"
 }`;
 
     try {
