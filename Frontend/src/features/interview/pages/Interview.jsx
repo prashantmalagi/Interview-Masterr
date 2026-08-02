@@ -357,9 +357,12 @@ const Interview = () => {
             {/* Top SaaS bar */}
             <header className='report-header-premium'>
                 <div className='left-actions'>
+                    <button className='hamburger-btn' aria-label='Toggle Navigation' onClick={() => setIsNavOpen(!isNavOpen)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </button>
                     <button onClick={() => navigate('/')} className='back-dash-btn'>
                         <ArrowLeft size={16} />
-                        Dashboard
+                        <span>Dashboard</span>
                     </button>
                     <h1>{report.title || 'Interview Report'}</h1>
                 </div>
@@ -367,25 +370,17 @@ const Interview = () => {
                 <div className='right-actions'>
                     <button onClick={handleShare} className='saas-icon-btn'>
                         <Share2 size={16} />
-                        {copiedShare ? 'Link Copied' : 'Share Plan'}
+                        <span>{copiedShare ? 'Link Copied' : 'Share Plan'}</span>
                     </button>
                     <button onClick={() => getResumePdf(interviewId)} className='saas-icon-btn premium-btn'>
                         <Download size={16} />
-                        Download ATS Resume
+                        <span>Download ATS Resume</span>
                     </button>
-                    <button onClick={() => setIsDarkTheme(!isDarkTheme)} className='theme-toggle-btn'>
+                    <button onClick={() => setIsDarkTheme(!isDarkTheme)} className='theme-toggle-btn' aria-label='Toggle Theme'>
                         {isDarkTheme ? <Sun size={16} /> : <Moon size={16} />}
                     </button>
                 </div>
             </header>
-
-            {/* Mobile Header Bar */}
-            <div className='interview-mobile-header'>
-                <button className='hamburger-btn' aria-label='Open Navigation' onClick={() => setIsNavOpen(true)}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                </button>
-                <h1 className='mobile-title'>{report.title || 'Untitled Position'}</h1>
-            </div>
 
             {/* Slide-out Overlay */}
             {isNavOpen && (
