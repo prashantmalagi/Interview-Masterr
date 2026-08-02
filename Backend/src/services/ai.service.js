@@ -174,27 +174,94 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
     }
 }
 
-async function generatePdfFromHtml(htmlContent) {
-    const browser = await puppeteer.launch({
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    try {
-        const page = await browser.newPage();
-        await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+const PDFDocument = require('pdfkit');
 
-        const pdfBuffer = await page.pdf({
-            format: "A4",
-            margin: {
-                top: "15mm",
-                bottom: "15mm",
-                left: "15mm",
-                right: "15mm"
-            },
-            printBackground: true
+async function generatePdfFallback(htmlContent) {
+    return new Promise((resolve, reject) => {
+        const doc = new PDFDocument({ margin: 50 });
+        const buffers = [];
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => {
+            const pdfData = Buffer.concat(buffers);
+            resolve(pdfData);
         });
-        return pdfBuffer;
-    } finally {
-        await browser.close();
+        doc.on('error', (err) => {
+            reject(err);
+        });
+
+        // Strip HTML tags and normalize text
+        let text = htmlContent
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // Remove style blocks
+            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // Remove script blocks
+            .replace(/<[^>]+>/g, '\n') // Replace tag closures/tags with newlines
+            .replace(/\n\s*\n+/g, '\n\n') // Collapse multiple newlines
+            .trim();
+
+        // Decode basic HTML entities
+        text = text
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'");
+
+        // Write text to PDF document
+        doc.fontSize(10).fillColor('#333333');
+        
+        const lines = text.split('\n');
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            
+            // Check if it looks like a heading/section header
+            if (trimmed.toUpperCase() === trimmed && trimmed.length < 50 && isNaN(trimmed)) {
+                doc.moveDown(0.5);
+                doc.fontSize(12).fillColor('#1e293b').text(trimmed, { stroke: false, bold: true });
+                doc.fontSize(10).fillColor('#333333');
+                doc.moveDown(0.2);
+            } else if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
+                doc.text(trimmed, { indent: 15 });
+            } else {
+                doc.text(trimmed);
+            }
+        }
+
+        doc.end();
+    });
+}
+
+async function generatePdfFromHtml(htmlContent) {
+    try {
+        const browser = await puppeteer.launch({
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+        try {
+            const page = await browser.newPage();
+            await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+
+            const pdfBuffer = await page.pdf({
+                format: "A4",
+                margin: {
+                    top: "15mm",
+                    bottom: "15mm",
+                    left: "15mm",
+                    right: "15mm"
+                },
+                printBackground: true
+            });
+            return pdfBuffer;
+        } finally {
+            await browser.close();
+        }
+    } catch (puppeteerError) {
+        console.warn("Puppeteer launch failed on server, falling back to pure JS PDF generation:", puppeteerError.message);
+        try {
+            const fallbackPdf = await generatePdfFallback(htmlContent);
+            return fallbackPdf;
+        } catch (fallbackError) {
+            console.error("PDFkit fallback generation error:", fallbackError);
+            throw puppeteerError; // If both fail, throw the original Puppeteer error
+        }
     }
 }
 
